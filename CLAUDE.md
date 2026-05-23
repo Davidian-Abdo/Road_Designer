@@ -260,11 +260,11 @@ REFT_CAT_3 = DesignConfig(design_speed=50, road_category="CAT_3",
 
 | Step | Scope | Touches | Done? |
 |---|---|---|---|
-| 0 | Repo cleanup: delete `*_1.py`, `.gitignore`, `output/`, git init | repo root | ☐ |
-| 1 | Config refactor → `DesignConfig` dataclass + REFT presets; add `min_straight_tangent`; rename `smothing_factor`; refactor `main.py` into `build_design(cfg, axe, terrain, outdir)` | `road_designer/config.py`, `road_design.py`, `main.py` | ☐ |
-| 2 | Profile/table X axis = PK (not rotated X); table `cote_proj` via `v_align.get_z(pk)` | `road_design.py` | ☐ |
-| 3 | Cubatures (plateforme approx) + 7th table row | `cubature.py`, `dxf_export.py` | ☐ |
-| 4 | Excel / CSV export | `excel_export.py` | ☐ |
+| 0 | Repo cleanup: delete `*_1.py`, `.gitignore`, `output/`, git init | repo root | ✅ |
+| 1 | Config refactor → `DesignConfig` dataclass + REFT presets; add `min_straight_tangent`; rename `smothing_factor`; refactor `main.py` into `build_design(cfg, axe, terrain, outdir)` | `road_designer/config.py`, `road_design.py`, `main.py` | ✅ |
+| 2 | Profile/table X axis = PK (not rotated X); table `cote_proj` via `v_align.get_z(pk)` | `road_design.py` | ✅ |
+| 3 | Cubatures (plateforme approx) + 7th table row | `cubature.py`, `dxf_export.py` | ✅ |
+| 4 | Excel / CSV export | `excel_export.py` | ✅ |
 | 5 | Diagramme de Bruckner under the table | `cubature.py`, `dxf_export.py` | ☐ |
 | 6 | `samples/` (axe + terrain) + `synth_terrain.py` + `docs/INPUT_FORMAT.md` | `samples/`, `docs/` | ☐ |
 | 7 | Profils en travers (paperspace `PT_01..M`) | `cross_section.py`, `dxf_export.py` | ☐ |
