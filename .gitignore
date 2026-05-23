@@ -1,0 +1,34 @@
+# Road Designer V 1.0 — gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Virtualenvs
+Road_venv/
+.venv/
+venv/
+
+# Local outputs (DXF, Excel, CSV, PDF) — never commit generated artifacts
+output/
+*.dxf
+*.xlsx
+*.csv
+*.pdf
+!samples/sample_terrain.csv
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# Excel lock / temp files
+~$*
+\#*
+
+# Streamlit
+.streamlit/secrets.toml
