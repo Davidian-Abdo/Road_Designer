@@ -139,6 +139,10 @@ def compute_cubatures(design: "RoadDesign") -> CubatureResult:
     Uses ``design.vert_pks``, ``vert_ground_z`` (TN at each vertex), and
     ``v_align.get_z(pk)`` (projet at each vertex). h is recomputed here so
     the cubatures are honest about C2 fix (cote_proj via v_align.get_z).
+
+    Phase 1b (Step 7b): if ``design.section_areas`` exists (populated by the
+    cross-section renderer), use the polygon-true (cut, fill) areas at each
+    available PK instead of the plateforme approximation.
     """
     cfg = design.cfg
     ts = cfg.typical_section
@@ -147,11 +151,19 @@ def compute_cubatures(design: "RoadDesign") -> CubatureResult:
     z_proj = np.array([design.v_align.get_z(pk) for pk in pks])
     h = z_proj - z_tn
 
-    area = np.array([
-        area_plateforme(hi, cfg.road_width,
-                        ts.talus_deblai_h_v, ts.talus_remblai_h_v)
-        for hi in h
-    ])
+    polygon_areas = getattr(design, "section_areas", None)
+
+    def signed_area(i: float, hi: float) -> float:
+        if polygon_areas is not None and float(pks[i]) in polygon_areas:
+            cut_a, fill_a = polygon_areas[float(pks[i])]
+            # Signed: + for fill, − for cut. Net is the true earthwork area.
+            return float(fill_a - cut_a)
+        return area_plateforme(
+            hi, cfg.road_width,
+            ts.talus_deblai_h_v, ts.talus_remblai_h_v,
+        )
+
+    area = np.array([signed_area(i, hi) for i, hi in enumerate(h)])
 
     n = len(pks)
     V_deb = np.zeros(n - 1)

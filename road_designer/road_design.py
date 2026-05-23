@@ -399,24 +399,40 @@ def build_design(
 
     Returns a dict with paths to the generated artifacts.
     """
+    from .cross_section import all_sections
     from .cubature import compute_cubatures
     from .dxf_export import write_dxf
     from .excel_export import write_xlsx
+    from .pdf_export import write_plan_pdf, write_pt_pdf
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     design = RoadDesign(terrain_path, axe_path, cfg)
+
+    # Step 7 — precompute cross-sections so Step 7b can plug their
+    # polygon areas into the cubatures.
+    sections = all_sections(design)
+    design.section_areas = {s.pk: (s.cut_area, s.fill_area) for s in sections}
+    design.sections = sections
+
+    # Step 3 + 7b — cubatures (polygon-true where sections are available)
     design.cubatures = compute_cubatures(design)
 
     dxf_path = out_dir / cfg.dxf_filename
     xlsx_path = out_dir / cfg.xlsx_filename
+    pdf_plan_path = out_dir / cfg.pdf_plan_filename
+    pdf_pt_path = out_dir / cfg.pdf_pt_filename
 
     write_dxf(design, dxf_path)
     write_xlsx(design, xlsx_path)
+    write_plan_pdf(dxf_path, pdf_plan_path, design)
+    write_pt_pdf(dxf_path, pdf_pt_path, design)
 
     return {
         "dxf": dxf_path,
         "xlsx": xlsx_path,
+        "pdf_plan": pdf_plan_path,
+        "pdf_pt": pdf_pt_path,
         "warnings": design.tangent_warnings,
     }

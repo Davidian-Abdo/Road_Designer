@@ -40,6 +40,19 @@ LAYERS = {
     "CURV_DIAG":      7,
     "CURV_DIAG_PROJ": 1,
     "CURV_DIAG_ARC":  4,
+    "BRUCKNER":       6,   # mass-haul curve
+    "BRUCKNER_BASE":  7,   # baseline + frame
+    "BRUCKNER_TEXT":  7,   # labels
+    # Step 7 — Profils en travers
+    "PT_TN":          3,   # green TN line
+    "PT_PROJET":      1,   # red projet (chaussée + accotement + fossé + talus)
+    "PT_CUT_HATCH":   1,   # déblai polygons
+    "PT_FILL_HATCH":  3,   # remblai polygons
+    "PT_FRAME":       7,   # frame + axes
+    "PT_TEXT":        7,   # labels & cotation
+    "PT_AXIS":        5,   # vertical axis tick at t=0
+    # Step 8 — Cartouche
+    "CARTOUCHE":      7,
 }
 
 
@@ -73,6 +86,9 @@ def write_dxf(design: "RoadDesign", out_path: Union[str, Path]) -> Path:
     _draw_plan(msp, design)
     _draw_profile(msp, design)
     _draw_table(msp, design)         # includes the 7th cubature row
+    _draw_bruckner(msp, design)      # Step 5 — mass-haul diagram
+    _draw_cross_sections(doc, design)  # Step 7 — paperspace PT_01..PT_M
+    _draw_plan_layouts(doc, design)    # Step 8 — paperspace PLAN_01..PLAN_N
 
     out_path = Path(out_path)
     doc.saveas(out_path)
@@ -524,3 +540,503 @@ def _build_curvature_segments(design):
             "grade": v.grades[-1],
         })
     return segments
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 5: Diagramme de Bruckner (mass-haul) — drawn under the curvature row
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _draw_bruckner(msp, design: "RoadDesign"):
+    """Draw the mass-haul curve M(PK) = Σ(V_rem − V_deb) below the table.
+
+    Same PK X-axis as profile + table (C1 contract). Vertical leaders
+    highlight the local extrema (the natural haul-boundary points).
+    """
+    cub = design.cubatures
+    if cub is None:
+        return
+
+    cfg = design.cfg
+
+    # Vertical position: under the curvature diagram (which itself is right
+    # under the table). We reproduce the same Y math without coupling.
+    _, _, _, _, _, profile_base_y = design.get_profile_data()
+    table_top = profile_base_y - 5.0
+    table_bottom = table_top - sum(ROW_HEIGHTS)
+    diag_top = table_bottom
+    diag_bottom = diag_top - CURV_DIAG_ROW_HEIGHT
+
+    y_top = diag_bottom - 4.0
+    y_bot = y_top - cfg.bruckner_row_height
+    y_zero = (y_top + y_bot) / 2     # baseline at M=0
+
+    col_x = design.pk_axis_x
+    x_min = float(col_x.min()) - 10.0
+    x_max = float(col_x.max()) + 10.0
+
+    # ── frame
+    msp.add_line(Vec2(x_min, y_top), Vec2(x_max, y_top),
+                 dxfattribs={"layer": "BRUCKNER_BASE"})
+    msp.add_line(Vec2(x_min, y_bot), Vec2(x_max, y_bot),
+                 dxfattribs={"layer": "BRUCKNER_BASE"})
+    msp.add_line(Vec2(x_min, y_top), Vec2(x_min, y_bot),
+                 dxfattribs={"layer": "BRUCKNER_BASE"})
+    msp.add_line(Vec2(x_max, y_top), Vec2(x_max, y_bot),
+                 dxfattribs={"layer": "BRUCKNER_BASE"})
+
+    # ── baseline (M = 0)
+    msp.add_line(Vec2(x_min, y_zero), Vec2(x_max, y_zero),
+                 dxfattribs={"layer": "BRUCKNER_BASE", "linetype": "CENTER"})
+
+    # ── title to the left of the frame
+    title_width = 35.0
+    x_title = x_min - title_width
+    msp.add_line(Vec2(x_title, y_top), Vec2(x_title, y_bot),
+                 dxfattribs={"layer": "BRUCKNER_BASE"})
+    msp.add_line(Vec2(x_title, y_top), Vec2(x_min, y_top),
+                 dxfattribs={"layer": "BRUCKNER_BASE"})
+    msp.add_line(Vec2(x_title, y_bot), Vec2(x_min, y_bot),
+                 dxfattribs={"layer": "BRUCKNER_BASE"})
+    msp.add_text(
+        "Diagramme de Bruckner", height=1.8,
+        dxfattribs={"layer": "BRUCKNER_TEXT"},
+    ).set_placement(
+        Vec2(x_title + 1, y_zero + 1.0),
+        align=TextEntityAlignment.MIDDLE_LEFT,
+    )
+    msp.add_text(
+        f"({cfg.bruckner_v_scale:.4f} m / m³)", height=1.2,
+        dxfattribs={"layer": "BRUCKNER_TEXT"},
+    ).set_placement(
+        Vec2(x_title + 1, y_zero - 1.5),
+        align=TextEntityAlignment.MIDDLE_LEFT,
+    )
+
+    # ── curve, clipped to the frame so a runaway mass-haul doesn't escape
+    half_height = cfg.bruckner_row_height / 2 - 1.0
+    pts = []
+    for x, m in zip(col_x, cub.bruckner):
+        dy = m * cfg.bruckner_v_scale
+        # clip
+        if dy > half_height:
+            dy = half_height
+        elif dy < -half_height:
+            dy = -half_height
+        pts.append(Vec2(float(x), float(y_zero + dy)))
+    msp.add_lwpolyline(pts, dxfattribs={"layer": "BRUCKNER"})
+
+    # ── annotate extrema (local max/min of M)
+    M = cub.bruckner
+    n = len(M)
+    extrema_idx: list[int] = []
+    for i in range(1, n - 1):
+        if (M[i] >= M[i - 1] and M[i] >= M[i + 1] and M[i] != M[i - 1]) or \
+           (M[i] <= M[i - 1] and M[i] <= M[i + 1] and M[i] != M[i - 1]):
+            extrema_idx.append(i)
+    # Always include the endpoints
+    extrema_idx = [0] + extrema_idx + [n - 1]
+
+    for i in extrema_idx:
+        x = float(col_x[i])
+        dy = M[i] * cfg.bruckner_v_scale
+        dy = max(min(dy, half_height), -half_height)
+        y_pt = y_zero + dy
+        # vertical leader to the baseline
+        msp.add_line(Vec2(x, y_zero), Vec2(x, y_pt),
+                     dxfattribs={"layer": "BRUCKNER",
+                                 "linetype": "DASHED"})
+        msp.add_text(
+            f"{M[i]:+.0f} m³", height=1.3,
+            dxfattribs={"layer": "BRUCKNER_TEXT"},
+        ).set_placement(
+            Vec2(x, y_pt + (1.0 if dy >= 0 else -1.5)),
+            align=TextEntityAlignment.MIDDLE_CENTER,
+        )
+
+    # ── global total on the right
+    x_tot = x_max + 3.0
+    msp.add_text(
+        f"M(fin) = {cub.balance:+.1f} m³", height=1.6,
+        dxfattribs={"layer": "BRUCKNER_TEXT"},
+    ).set_placement(Vec2(x_tot, y_zero + 1.5),
+                    align=TextEntityAlignment.MIDDLE_LEFT)
+    msp.add_text(
+        ("Excédent → évacuer" if cub.balance < 0
+         else "Déficit → emprunter"), height=1.4,
+        dxfattribs={"layer": "BRUCKNER_TEXT"},
+    ).set_placement(Vec2(x_tot, y_zero - 1.5),
+                    align=TextEntityAlignment.MIDDLE_LEFT)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 7 — Profils en travers (paperspace layouts PT_01..PT_M)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# A4 portrait in mm — Streamlit-Cloud-friendly when rendered to PDF
+PT_PAGE_W_MM = 210.0
+PT_PAGE_H_MM = 297.0
+
+
+def _draw_cross_sections(doc, design: "RoadDesign"):
+    """Build one A4 paperspace layout per cross-section.
+
+    Lazy import to keep ``dxf_export`` usable even before Step 7 lands.
+    """
+    from .cross_section import all_sections
+
+    sections = all_sections(design)
+    if not sections:
+        return
+
+    # Attach cut/fill areas back onto the design so Step 7b can swap them
+    # into cubature.py without changing call sites.
+    design.section_areas = {
+        s.pk: (s.cut_area, s.fill_area) for s in sections
+    }
+
+    for k, sec in enumerate(sections, start=1):
+        name = f"PT_{k:03d}"
+        if name in doc.layouts:
+            doc.layouts.delete(name)
+        lay = doc.layouts.new(name)
+        lay.page_setup(
+            size=(PT_PAGE_W_MM, PT_PAGE_H_MM),
+            margins=(10, 10, 10, 10),
+            units="mm",
+            scale=1,
+        )
+        _draw_one_pt(lay, design, sec, page_index=k, n_total=len(sections))
+
+
+def _draw_one_pt(lay, design: "RoadDesign", sec, page_index: int, n_total: int):
+    """Draw a single cross-section page in its paperspace layout."""
+    cfg = design.cfg
+    # The paperspace coordinate system is in mm. Layout the page:
+    #   ┌─ frame ──────────────────────────────────────────┐
+    #   │ Title:  Profil en travers n° PT_xx  —  PK = …    │
+    #   │ Cote projet axe = …   Cote TN axe = …            │
+    #   │                                                    │
+    #   │            (drawing area)                          │
+    #   │                                                    │
+    #   │  Bilan : Cut = … m²    Fill = … m²                 │
+    #   └────────────────────────────────────────────────────┘
+
+    margin = 12.0
+    title_h = 18.0
+    footer_h = 10.0
+    draw_x0 = margin
+    draw_y0 = margin + footer_h
+    draw_x1 = PT_PAGE_W_MM - margin
+    draw_y1 = PT_PAGE_H_MM - margin - title_h
+    draw_w = draw_x1 - draw_x0
+    draw_h = draw_y1 - draw_y0
+
+    # Frame
+    lay.add_lwpolyline(
+        [(margin, margin), (PT_PAGE_W_MM - margin, margin),
+         (PT_PAGE_W_MM - margin, PT_PAGE_H_MM - margin),
+         (margin, PT_PAGE_H_MM - margin), (margin, margin)],
+        close=True, dxfattribs={"layer": "PT_FRAME"},
+    )
+    # Title block separator
+    lay.add_line(
+        Vec2(margin, PT_PAGE_H_MM - margin - title_h),
+        Vec2(PT_PAGE_W_MM - margin, PT_PAGE_H_MM - margin - title_h),
+        dxfattribs={"layer": "PT_FRAME"},
+    )
+    # Footer separator
+    lay.add_line(
+        Vec2(margin, margin + footer_h),
+        Vec2(PT_PAGE_W_MM - margin, margin + footer_h),
+        dxfattribs={"layer": "PT_FRAME"},
+    )
+
+    # Title
+    lay.add_text(
+        f"Profil en travers PT_{page_index:03d}  —  PK = {sec.pk:.3f} m  "
+        f"(page {page_index}/{n_total})",
+        height=3.5, dxfattribs={"layer": "PT_TEXT"},
+    ).set_placement(
+        Vec2((margin + PT_PAGE_W_MM - margin) / 2,
+             PT_PAGE_H_MM - margin - title_h / 2 + 2.5),
+        align=TextEntityAlignment.MIDDLE_CENTER,
+    )
+    lay.add_text(
+        f"Cote projet (axe) = {sec.z_axis_proj:.3f}     "
+        f"Cote TN (axe) = {sec.z_axis_tn:.3f}     "
+        f"Différence h = {sec.z_axis_proj - sec.z_axis_tn:+.3f} m",
+        height=2.5, dxfattribs={"layer": "PT_TEXT"},
+    ).set_placement(
+        Vec2((margin + PT_PAGE_W_MM - margin) / 2,
+             PT_PAGE_H_MM - margin - title_h / 2 - 2.5),
+        align=TextEntityAlignment.MIDDLE_CENTER,
+    )
+
+    # Footer — areas
+    lay.add_text(
+        f"Aire déblai (cut)  = {sec.cut_area:>7.2f} m²    "
+        f"Aire remblai (fill) = {sec.fill_area:>7.2f} m²",
+        height=2.5, dxfattribs={"layer": "PT_TEXT"},
+    ).set_placement(
+        Vec2((margin + PT_PAGE_W_MM - margin) / 2, margin + footer_h / 2),
+        align=TextEntityAlignment.MIDDLE_CENTER,
+    )
+
+    # ── data scaling: fit (TN + projet) bounding box into draw area
+    all_pts = list(sec.tn_polyline) + list(sec.proj_polyline)
+    ts = np.array([p[0] for p in all_pts])
+    zs = np.array([p[1] for p in all_pts])
+    t_min, t_max = float(ts.min()), float(ts.max())
+    z_min, z_max = float(zs.min()), float(zs.max())
+    # 5 % margin
+    span_t = max(0.1, t_max - t_min)
+    span_z = max(0.1, z_max - z_min)
+    sx = (draw_w * 0.92) / span_t                  # mm per metre H
+    sy = (draw_h * 0.88) / span_z                  # mm per metre V
+    s = min(sx, sy)                                # uniform scale (≈ 1:100 or so)
+    cx = draw_x0 + draw_w / 2
+    cy = draw_y0 + draw_h / 2
+    t_mid = (t_min + t_max) / 2
+    z_mid = (z_min + z_max) / 2
+
+    def xy(t, z):
+        return ((t - t_mid) * s + cx, (z - z_mid) * s + cy)
+
+    # ── hatched cut / fill polygons
+    for poly in sec.fill_polygons:
+        if len(poly) >= 3:
+            h = lay.add_hatch(color=3, dxfattribs={"layer": "PT_FILL_HATCH"})
+            h.paths.add_polyline_path(
+                [xy(t, z) for t, z in poly], is_closed=True,
+            )
+            h.set_pattern_fill("ANSI31", scale=0.5, color=3)
+    for poly in sec.cut_polygons:
+        if len(poly) >= 3:
+            h = lay.add_hatch(color=1, dxfattribs={"layer": "PT_CUT_HATCH"})
+            h.paths.add_polyline_path(
+                [xy(t, z) for t, z in poly], is_closed=True,
+            )
+            h.set_pattern_fill("ANSI31", scale=0.5, color=1)
+
+    # ── TN line
+    lay.add_lwpolyline(
+        [xy(t, z) for t, z in sec.tn_polyline],
+        dxfattribs={"layer": "PT_TN"},
+    )
+    # ── Projet line
+    lay.add_lwpolyline(
+        [xy(t, z) for t, z in sec.proj_polyline],
+        dxfattribs={"layer": "PT_PROJET"},
+    )
+
+    # ── Axis tick at t = 0
+    x_ax, _ = xy(0.0, z_mid)
+    lay.add_line(Vec2(x_ax, draw_y0), Vec2(x_ax, draw_y1),
+                 dxfattribs={"layer": "PT_AXIS", "linetype": "CENTER"})
+    lay.add_text(
+        "Axe", height=2.0, dxfattribs={"layer": "PT_AXIS"},
+    ).set_placement(Vec2(x_ax + 1.5, draw_y1 - 3),
+                    align=TextEntityAlignment.MIDDLE_LEFT)
+
+    # ── Break-point labels along the projet polyline
+    for t, z, label in sec.projet_break_points:
+        if label == "axe":
+            continue
+        bx, by = xy(t, z)
+        lay.add_circle(Vec2(bx, by), radius=0.6,
+                       dxfattribs={"layer": "PT_PROJET"})
+        lay.add_text(
+            label, height=1.6, dxfattribs={"layer": "PT_TEXT"},
+        ).set_placement(Vec2(bx, by - 2.0),
+                        align=TextEntityAlignment.MIDDLE_CENTER)
+
+    # ── Scale legend
+    lay.add_text(
+        f"Échelle  H 1:{int(round(1000 / s))}  "
+        f"V 1:{int(round(1000 / s))}",
+        height=2.0, dxfattribs={"layer": "PT_TEXT"},
+    ).set_placement(
+        Vec2(PT_PAGE_W_MM - margin - 2, margin + footer_h + 2),
+        align=TextEntityAlignment.RIGHT,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 8 — Cartouche + multi-A1 plan paperspace (PLAN_01..PLAN_N)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# A1 landscape in mm
+A1_W_MM = 841.0
+A1_H_MM = 594.0
+
+
+def _ensure_cartouche_block(doc):
+    """Define the reusable CARTOUCHE block once per document."""
+    if "CARTOUCHE" in doc.blocks:
+        return doc.blocks.get("CARTOUCHE")
+    blk = doc.blocks.new(name="CARTOUCHE")
+
+    w, h = 180.0, 100.0   # mm
+    blk.add_lwpolyline(
+        [(0, 0), (w, 0), (w, h), (0, h), (0, 0)],
+        close=True, dxfattribs={"layer": "CARTOUCHE"},
+    )
+
+    # Inner cells
+    rows = [0.0, 14.0, 28.0, 44.0, 60.0, 76.0, 88.0, h]
+    for y in rows[1:-1]:
+        blk.add_line(Vec2(0, y), Vec2(w, y),
+                     dxfattribs={"layer": "CARTOUCHE"})
+    blk.add_line(Vec2(40, rows[1]), Vec2(40, rows[2]),
+                 dxfattribs={"layer": "CARTOUCHE"})
+    blk.add_line(Vec2(90, rows[1]), Vec2(90, rows[2]),
+                 dxfattribs={"layer": "CARTOUCHE"})
+    blk.add_line(Vec2(140, rows[1]), Vec2(140, rows[2]),
+                 dxfattribs={"layer": "CARTOUCHE"})
+
+    # Static labels (these don't change per sheet)
+    labels = [
+        (5, rows[6] + 8, "PROJET"),
+        (5, rows[5] + 8, "MAITRE D'OUVRAGE"),
+        (5, rows[4] + 8, "BUREAU D'ÉTUDES (BET)"),
+        (5, rows[3] + 8, "INDICATIONS"),
+        (5, rows[2] + 8, "PLAN"),
+        (5,  rows[1] + 8, "ÉCHELLES / DATES"),
+        (5,  rows[1] + 2, "Échelle H:"),
+        (45, rows[1] + 2, "Échelle V:"),
+        (95, rows[1] + 2, "Date:"),
+        (145, rows[1] + 2, "Indice:"),
+    ]
+    for x, y, t in labels:
+        blk.add_text(
+            t, height=2.4,
+            dxfattribs={"layer": "CARTOUCHE", "color": 7},
+        ).set_placement(Vec2(x, y), align=TextEntityAlignment.LEFT)
+
+    # Dynamic ATTDEFs — filled per layout insertion via INSERT.attribs
+    attdefs = [
+        ("PROJET",        Vec2(5,  rows[6] + 3), 3.5),
+        ("MAITRE_OUV",    Vec2(5,  rows[5] + 3), 2.8),
+        ("BET",           Vec2(5,  rows[4] + 3), 2.8),
+        ("DESIGNER",      Vec2(95, rows[4] + 3), 2.8),
+        ("PLAN_N",        Vec2(95, rows[3] + 3), 3.5),
+        ("PK_RANGE",      Vec2(5,  rows[3] + 3), 2.8),
+        ("INDICE_TXT",    Vec2(160, rows[1] + 7), 4.0),
+        ("DATE_TXT",      Vec2(110, rows[1] + 7), 2.8),
+        ("ECH_H",         Vec2(20, rows[1] + 7), 2.8),
+        ("ECH_V",         Vec2(60, rows[1] + 7), 2.8),
+    ]
+    for tag, pos, height in attdefs:
+        blk.add_attdef(
+            tag=tag, text="",
+            insert=pos, height=height,
+            dxfattribs={"layer": "CARTOUCHE"},
+        )
+    return blk
+
+
+def _draw_plan_layouts(doc, design: "RoadDesign"):
+    """Create PLAN_01..PLAN_N — one A1 sheet per ``sheet_length_pk`` window.
+
+    Each sheet contains:
+      • A modelspace viewport zoomed to the plan window
+      • A modelspace viewport zoomed to the profile/table window
+      • A CARTOUCHE block instance with attribs filled
+    """
+    cfg = design.cfg
+    _ensure_cartouche_block(doc)
+
+    pk_min = float(design.vert_pks.min())
+    pk_max = float(design.vert_pks.max())
+    n_sheets = max(1, int(np.ceil((pk_max - pk_min) / cfg.sheet_length_pk)))
+
+    for k in range(n_sheets):
+        pk_start = pk_min + k * cfg.sheet_length_pk
+        pk_end = min(pk_max, pk_start + cfg.sheet_length_pk)
+        name = f"PLAN_{k + 1:02d}"
+        if name in doc.layouts:
+            doc.layouts.delete(name)
+        lay = doc.layouts.new(name)
+        lay.page_setup(
+            size=(A1_W_MM, A1_H_MM),
+            margins=(10, 10, 10, 10),
+            units="mm",
+            scale=1,
+        )
+
+        # Outer frame
+        lay.add_lwpolyline(
+            [(10, 10), (A1_W_MM - 10, 10),
+             (A1_W_MM - 10, A1_H_MM - 10), (10, A1_H_MM - 10), (10, 10)],
+            close=True, dxfattribs={"layer": "CARTOUCHE"},
+        )
+
+        # Viewport 1: plan view of this PK window
+        _add_plan_viewport(lay, design, pk_start, pk_end)
+        # Viewport 2: profile + table of this PK window
+        _add_profile_viewport(lay, design, pk_start, pk_end)
+
+        # Insert cartouche bottom-right
+        cart_x = A1_W_MM - 10 - 180.0 - 6.0
+        cart_y = 10 + 6.0
+        ref = lay.add_blockref("CARTOUCHE", insert=Vec2(cart_x, cart_y))
+        ref.add_auto_attribs({
+            "PROJET":        cfg.cartouche.projet or "—",
+            "MAITRE_OUV":    cfg.cartouche.maitre_ouvrage or "—",
+            "BET":           cfg.cartouche.bet or "—",
+            "DESIGNER":      cfg.cartouche.designer or "—",
+            "PLAN_N":        f"{cfg.cartouche.plan_n or 'PLAN'}-{k + 1:02d}",
+            "PK_RANGE":      f"PK {pk_start:.1f} → {pk_end:.1f}",
+            "INDICE_TXT":    cfg.cartouche.indice,
+            "DATE_TXT":      cfg.cartouche.date or "—",
+            "ECH_H":         cfg.cartouche.echelle_h,
+            "ECH_V":         cfg.cartouche.echelle_v,
+        })
+
+
+def _add_plan_viewport(lay, design, pk_start: float, pk_end: float):
+    """Add a paperspace viewport showing the rotated plan over [pk_start, pk_end]."""
+    # Find rotated-X bounds for this PK window
+    pk_grid = np.linspace(pk_start, pk_end, 50)
+    x_rot = [design.pk_to_x_rot(pk) for pk in pk_grid]
+    x_min, x_max = min(x_rot), max(x_rot)
+    # Plan y range = vert_y_rot envelope ± edges
+    y_min = float(design.vert_y_rot.min()) - 30.0
+    y_max = float(design.vert_y_rot.max()) + 30.0
+    cx, cy = (x_min + x_max) / 2, (y_min + y_max) / 2
+    view_h = max(y_max - y_min, (x_max - x_min) * (200 / 600))
+
+    # Viewport position on the sheet (top half)
+    vp = lay.add_viewport(
+        center=(A1_W_MM / 2, A1_H_MM * 0.70),
+        size=(A1_W_MM - 40, A1_H_MM * 0.45),
+        view_center_point=(cx, cy),
+        view_height=view_h,
+    )
+    vp.dxf.status = 1
+    return vp
+
+
+def _add_profile_viewport(lay, design, pk_start: float, pk_end: float):
+    """Add a paperspace viewport showing the profile + table over the PK window."""
+    cfg = design.cfg
+    x0 = design.pk_to_x(pk_start)
+    x1 = design.pk_to_x(pk_end)
+    # Y range covers from below the Bruckner row to above the profile baseline
+    _, _, _, _, _, profile_base_y = design.get_profile_data()
+    top = profile_base_y + 60.0
+    bottom = (profile_base_y - 5.0
+              - sum(ROW_HEIGHTS)
+              - CURV_DIAG_ROW_HEIGHT
+              - 4.0 - cfg.bruckner_row_height - 5.0)
+    cx, cy = (x0 + x1) / 2, (top + bottom) / 2
+    view_h = top - bottom
+
+    vp = lay.add_viewport(
+        center=(A1_W_MM / 2, A1_H_MM * 0.27),
+        size=(A1_W_MM - 40, A1_H_MM * 0.42),
+        view_center_point=(cx, cy),
+        view_height=view_h,
+    )
+    vp.dxf.status = 1
+    return vp

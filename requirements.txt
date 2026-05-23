@@ -1,0 +1,17 @@
+# Road Designer V 1.0 — Streamlit Cloud pinned requirements.
+#
+# Target runtime: Python 3.12 (Streamlit Cloud default).
+# Locally tested on Python 3.14 with streamlit 1.57 (older streamlits pull
+# in a pillow that has no 3.14 wheel).
+#
+# Update only with a corresponding smoke-test run.
+streamlit>=1.39,<2.0
+ezdxf>=1.3.4,<2.0
+numpy>=1.26,<3.0
+scipy>=1.13,<2.0
+pandas>=2.2,<3.0
+openpyxl>=3.1,<4.0
+matplotlib>=3.9,<4.0
+
+# Test-only — not needed on Streamlit Cloud but cheap
+pytest>=8.0

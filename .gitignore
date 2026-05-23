@@ -17,7 +17,8 @@ output/
 *.xlsx
 *.csv
 *.pdf
-!samples/sample_terrain.csv
+# Exceptions: anything under samples/ ships with the app
+!samples/**
 
 # IDE / OS
 .vscode/

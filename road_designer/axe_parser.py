@@ -199,19 +199,30 @@ class AlignmentParser:
         return self.segments
 
     def sample_points(self, step: float) -> List[Tuple[float, float, float]]:
-        """Return list of (PK, X, Y) sampled along all segments at ``step`` m."""
+        """Return list of (PK, X, Y) sampled along all segments at ``step`` m.
+
+        The last sample of each segment is anchored to ``seg.end_pk`` so that
+        sampling cannot drift away from the station PK due to the
+        accumulated rounding inside arc length parameterisation.
+        """
         points: List[Tuple[float, float, float]] = []
         for seg in self.segments:
-            num = int(np.ceil(seg.length / step)) + 1
+            num = max(2, int(np.ceil(seg.length / step)) + 1)
             for k in range(num):
-                d = min(k * step, seg.length)
-                pk = seg.start_pk + d
+                if k == num - 1:
+                    # Anchor the last sample exactly to seg.end_pk
+                    d = seg.length
+                    pk = seg.end_pk
+                else:
+                    d = min(k * step, seg.length)
+                    pk = seg.start_pk + d
                 pt = seg.point_at_distance(d)
                 points.append((pk, pt[0], pt[1]))
-        unique = []
+        # Dedup near-duplicates at segment boundaries
+        unique: List[Tuple[float, float, float]] = []
         last_pk = None
         for pk, x, y in points:
-            if last_pk is None or abs(pk - last_pk) > 1e-6:
+            if last_pk is None or pk > last_pk + 1e-6:
                 unique.append((pk, x, y))
                 last_pk = pk
         return unique

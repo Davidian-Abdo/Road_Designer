@@ -102,9 +102,17 @@ class DesignConfig:
     sheet_format: str = "A1"
     cartouche: CartoucheInfo = field(default_factory=CartoucheInfo)
 
-    # ── Output ──────────────────────────────────────────────────────────
+    # ── Bruckner diagram (Step 5) ───────────────────────────────────────
+    bruckner_row_height: float = 18.0    # vertical extent of the diagram [m]
+    bruckner_v_scale: float = 0.002      # m³ → drawing unit (1 m³ = 0.002 m)
+
+    # ── Output filenames ────────────────────────────────────────────────
     dxf_filename: str = "road_design.dxf"
     xlsx_filename: str = "tableau_profil_en_long.xlsx"
+    pdf_plan_filename: str = "plan_par_sections.pdf"  # Step 9 — one page per
+                                                      # sheet_length_pk window
+    pdf_pt_filename: str = "profils_en_travers.pdf"   # Step 9 — one page per PT
+    pdf_dpi: int = 200                                 # render quality
 
     def to_dict(self) -> Dict[str, Any]:
         """JSON-serialisable snapshot — used by the Streamlit UI to remember

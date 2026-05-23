@@ -219,6 +219,14 @@ class DesignConfig:
     sheet_format:           str   = "A1"
     cartouche:              CartoucheInfo = field(default_factory=CartoucheInfo)
 
+    # Output filenames (Step 9 adds the two PDFs)
+    dxf_filename:           str   = "road_design.dxf"
+    xlsx_filename:          str   = "tableau_profil_en_long.xlsx"
+    pdf_plan_filename:      str   = "plan_par_sections.pdf"   # one page per
+                                                              # sheet_length_pk
+    pdf_pt_filename:        str   = "profils_en_travers.pdf"  # one page per PT
+    pdf_dpi:                int   = 200                       # render quality
+
 
 REFT_CAT_1 = DesignConfig()                               # 80–100 km/h (default)
 REFT_CAT_2 = DesignConfig(design_speed=70, road_category="CAT_2",
@@ -265,13 +273,14 @@ REFT_CAT_3 = DesignConfig(design_speed=50, road_category="CAT_3",
 | 2 | Profile/table X axis = PK (not rotated X); table `cote_proj` via `v_align.get_z(pk)` | `road_design.py` | ✅ |
 | 3 | Cubatures (plateforme approx) + 7th table row | `cubature.py`, `dxf_export.py` | ✅ |
 | 4 | Excel / CSV export | `excel_export.py` | ✅ |
-| 5 | Diagramme de Bruckner under the table | `cubature.py`, `dxf_export.py` | ☐ |
-| 6 | `samples/` (axe + terrain) + `synth_terrain.py` + `docs/INPUT_FORMAT.md` | `samples/`, `docs/` | ☐ |
-| 7 | Profils en travers (paperspace `PT_01..M`) | `cross_section.py`, `dxf_export.py` | ☐ |
-| 7b | Replace plateforme `A(pk)` with polygon `A(pk)` from cross-sections | `cubature.py` | ☐ |
-| 8 | Cartouches + multi-A1 paperspace `PLAN_01..N` | `dxf_export.py` | ☐ |
-| 9 | Streamlit Cloud UI (`app.py`, `.streamlit/`, `requirements.txt`) | repo root | ☐ |
-| 10 | pytest suite | `tests/` | ☐ |
+| 5 | Diagramme de Bruckner under the table | `cubature.py`, `dxf_export.py` | ✅ |
+| 6 | `samples/` (axe + terrain) + `synth_terrain.py` + `docs/INPUT_FORMAT.md` | `samples/`, `docs/` | ✅ |
+| 7 | Profils en travers (paperspace `PT_01..M`) | `cross_section.py`, `dxf_export.py` | ✅ |
+| 7b | Replace plateforme `A(pk)` with polygon `A(pk)` from cross-sections | `cubature.py` | ✅ |
+| 8 | Cartouches + multi-A1 paperspace `PLAN_01..N` | `dxf_export.py` | ✅ |
+| **9** | **PDF export — two files: (a) `plan_par_sections.pdf`, one A1 page per `sheet_length_pk` window (re-using `PLAN_01..N` layouts from Step 8); (b) `profils_en_travers.pdf`, one A4 page per PT (re-using `PT_01..M` layouts from Step 7). Rendered via `ezdxf.addons.drawing` matplotlib backend.** | **`pdf_export.py`** | **✅** |
+| 10 | Streamlit Cloud UI (`app.py`, `.streamlit/`, `requirements.txt`) | repo root | ✅ |
+| 11 | pytest suite | `tests/` | ✅ |
 
 Each step lands on a clean, runnable repo. After Step 9 the user opens the Streamlit URL, uploads (or picks samples), tunes config, and downloads DXF + XLSX in one click.
 
@@ -316,6 +325,32 @@ When editing for Step 9 (and anything that touches I/O before then):
 
 ---
 
-## 11. Version
+## 11. PDF export contract (Step 9)
+
+Two PDFs are produced from the **same** DXF the user gets — never re-implement
+geometry. The renderer is `ezdxf.addons.drawing` with the matplotlib backend
+and `matplotlib.backends.backend_pdf.PdfPages`.
+
+| File | One page per | Driven by | Page size |
+|---|---|---|---|
+| `plan_par_sections.pdf` | A1 layout `PLAN_xx` | `cfg.sheet_length_pk` (Step 8) | A1 landscape |
+| `profils_en_travers.pdf` | A4 layout `PT_xx` (one PT per layout) | `cfg.cross_section_step_pk` (Step 7) | A4 portrait |
+
+Rules
+- **No new geometry in `pdf_export.py`.** It opens the existing DXF, walks
+  the layouts in name order, and rasterises each to a PDF page.
+- **Resolution** is `cfg.pdf_dpi` (default 200). Vector mode is preferred when
+  the backend supports it (matplotlib does — text stays selectable).
+- **In-memory variants** (`to_plan_pdf_bytes`, `to_pt_pdf_bytes`) are mandatory
+  for the Streamlit downloader (rule 9.1).
+- **Page order is deterministic**: `sorted(name for name in doc.layouts
+  if name.startswith(prefix))`.
+- **First page** of each PDF prepends a one-page cover with the cartouche
+  fields (`projet`, `BET`, `designer`, `indice`, `date`, total length, total
+  cubatures) so the printed document is self-describing.
+
+---
+
+## 12. Version
 
 `Road Designer V 1.0` — first integrated release. Predecessor: a flat script that produced a single DXF with plan + profile + 6-row table + curvature diagram.
