@@ -232,8 +232,10 @@ with st.sidebar:
 
         st.markdown("**Échelles PDF — Profils en travers (profils_en_travers.pdf)**")
         st.caption(
-            "Valeurs par défaut : H 1:80 — V 1:15 (page A3 portrait, "
-            "≈ ×5.3 d'exagération verticale). "
+            "Valeurs par défaut : **H 1:100 — V 1:15** (page A4 portrait, "
+            "≈ ×6.7 d'exagération verticale). "
+            "Si les données sont trop hautes pour A4 à 1:15, l'échelle V "
+            "est ajustée et un avis est ajouté au pied de page. "
             "Mettre 0 pour repasser à l'auto-ajustement."
         )
         col3, col4 = st.columns(2)
@@ -243,7 +245,7 @@ with st.sidebar:
                 min_value=0,
                 value=int(base_cfg.pdf_pt_h_scale or 0),
                 step=10, key="pt_h",
-                help="Ex. 80 → 1 m = 12.5 mm sur papier",
+                help="Ex. 100 → 1 m = 10 mm sur papier",
             )
         with col4:
             pdf_pt_v = st.number_input(
@@ -252,7 +254,7 @@ with st.sidebar:
                 value=int(base_cfg.pdf_pt_v_scale or 0),
                 step=5, key="pt_v",
                 help="Ex. 15 → 1 m = 66.7 mm sur papier "
-                     "(≈ ×5.3 exag avec H=80)",
+                     "(≈ ×6.7 exag avec H=100)",
             )
 
     with st.expander("Cartouche", expanded=True):

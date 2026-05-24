@@ -51,11 +51,10 @@ if TYPE_CHECKING:
 MM_PER_INCH = 25.4
 A1_LANDSCAPE_IN: Tuple[float, float] = (841 / MM_PER_INCH, 594 / MM_PER_INCH)
 A4_PORTRAIT_IN: Tuple[float, float] = (210 / MM_PER_INCH, 297 / MM_PER_INCH)
-A3_PORTRAIT_IN: Tuple[float, float] = (297 / MM_PER_INCH, 420 / MM_PER_INCH)
-# Cross-section pages use A3 portrait — the BET default for detail PTs.
-PT_PAGE_IN: Tuple[float, float] = A3_PORTRAIT_IN
-PT_PAGE_W_MM: float = 297.0
-PT_PAGE_H_MM: float = 420.0
+# Cross-section pages use A4 portrait — the BET deliverable standard.
+PT_PAGE_IN: Tuple[float, float] = A4_PORTRAIT_IN
+PT_PAGE_W_MM: float = 210.0
+PT_PAGE_H_MM: float = 297.0
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -818,11 +817,12 @@ def to_plan_pdf_bytes(dxf_path, design: "RoadDesign") -> bytes:
 # (b) PROFILS EN TRAVERS — A4 portrait, properly sized cross-sections
 # ═════════════════════════════════════════════════════════════════════════════
 
-# PT drawing area (mm) — A3 portrait is 297 × 420 mm.  We use 285 mm wide
-# (96 %) and up to 335 mm tall, leaving room for the company header, the
-# project info block, and the cubature footer.
-_PT_DRAW_W_MM = 285.0
-_PT_DRAW_H_MM = 335.0
+# PT drawing area (mm) — A4 portrait is 210 × 297 mm.  We use the full
+# 210 mm width minus 5 mm each side (200 mm) and up to 235 mm tall,
+# leaving room for the company header, the title/stats block, and the
+# cubature footer.
+_PT_DRAW_W_MM = 200.0
+_PT_DRAW_H_MM = 235.0
 
 # Default vertical exaggeration when neither H nor V is provided. 1.0 means
 # **no exaggeration** (V = H — geometrically honest cross-section, the BET
@@ -899,6 +899,19 @@ def _render_pt_page(pdf: PdfPages, design: "RoadDesign", sec,
 
     page_w_mm = PT_PAGE_W_MM
     page_h_mm = PT_PAGE_H_MM
+
+    # If the user-forced scales would push the drawing outside the body,
+    # ratchet the corresponding axis to fit and report the achieved scale
+    # in the footer (the requested-vs-achieved gap is then obvious).
+    capped = False
+    if w_mm > _PT_DRAW_W_MM:
+        scale_h = int(round(t_range * 1000.0 / _PT_DRAW_W_MM))
+        w_mm = _PT_DRAW_W_MM
+        capped = True
+    if h_mm > _PT_DRAW_H_MM:
+        scale_v = int(round(z_range * 1000.0 / _PT_DRAW_H_MM))
+        h_mm = _PT_DRAW_H_MM
+        capped = True
 
     # Body extent: under the title/stats block (top ≈ 84 %) down to just
     # above the stats footer (bottom ≈ 9 %).
@@ -979,9 +992,11 @@ def _render_pt_page(pdf: PdfPages, design: "RoadDesign", sec,
              f"Aire déblai = {sec.cut_area:>7.2f} m²    •    "
              f"Aire remblai = {sec.fill_area:>7.2f} m²",
              fontsize=10, ha="center", color="#1C1C1C")
+    scale_suffix = ("   (échelle ajustée pour tenir sur A4)" if capped else "")
     fig.text(0.5, 0.04,
              f"Échelles  —  H 1:{scale_h}   V 1:{scale_v}   "
-             f"(exagération verticale ×{scale_h / scale_v:.1f})",
+             f"(exagération verticale ×{scale_h / scale_v:.1f})"
+             f"{scale_suffix}",
              fontsize=8.5, ha="center", color="#5A5A5A", fontstyle="italic")
 
     # Grid + axis labels

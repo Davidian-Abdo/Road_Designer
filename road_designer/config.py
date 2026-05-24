@@ -123,13 +123,15 @@ class DesignConfig:
     pdf_plan_h_scale: Optional[int] = None
     pdf_plan_v_scale: Optional[int] = None
     #
-    # Profils en travers: defaults to **H 1:80  V 1:15** — the detail
-    # scale BETs use on A3 portrait. With ``extent = 1.5 × road_width``
-    # (= 21 m total for a 7 m chaussée) this gives a 263 × ~300 mm
-    # drawing that fits A3 portrait comfortably. Vertical exaggeration
-    # ≈ ×5.3 emphasises cut/fill while keeping break points readable.
+    # Profils en travers: defaults to **H 1:100  V 1:15** — the standard
+    # BET detail scale on A4 portrait. With ``extent = 1.5 × road_width``
+    # (= 21 m total for a 7 m chaussée) the drawing fills the A4 width.
+    # Vertical exaggeration ≈ ×6.7 emphasises cut/fill while keeping the
+    # typical-section break points readable. If the data is too tall
+    # for A4 at V 1:15, the renderer scales the V axis down to fit and
+    # reports the actually-achieved V scale in the footer.
     # Override either field with ``None`` to fall back to auto-picking.
-    pdf_pt_h_scale: Optional[int] = 80       # 1:80
+    pdf_pt_h_scale: Optional[int] = 100      # 1:100
     pdf_pt_v_scale: Optional[int] = 15       # 1:15
 
     # ── Output filenames ────────────────────────────────────────────────
