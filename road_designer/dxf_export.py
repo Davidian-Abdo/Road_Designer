@@ -207,10 +207,17 @@ def _draw_profile(msp, design: "RoadDesign"):
         dxfattribs={"layer": "PROJECT"},
     )
 
-    # Rappel lines: slanted (C1 fix — plan X ≠ profile X anymore)
-    for (x_plan, y_plan), (x_prof, y_prof) in design.get_rappel_segments():
+    # Vertical guides — profile ↔ table.
+    # Bug C8 keeps an accurate horizontal scale (plan width ≠ road length
+    # by design), so plan↔profile rappels would be slanted and visually
+    # confusing. Instead we draw perfectly-vertical guides from each
+    # profile column DOWN to the top of the table — they share the same
+    # X (pk_axis_x) by construction. These are what the engineer's eye
+    # uses to link a station on the profile with its row in the table.
+    table_top = profile_base_y - 5.0
+    for x_pos, y_tn in zip(prof_x, ground_y):
         msp.add_line(
-            Vec2(x_plan, y_plan), Vec2(x_prof, y_prof),
+            Vec2(x_pos, table_top), Vec2(x_pos, y_tn),
             dxfattribs={"layer": "RAPPEL", "linetype": "DASHED"},
         )
 
@@ -248,7 +255,9 @@ ROW_LABELS = [
     "Pentes et Rampes",
     "Cubatures Déb. / Remb. (m³)",  # Step 3 — new row
 ]
-ROW_HEIGHTS = [5.0, 5.0, 15.0, 15.0, 15.0, 8.0, 12.0]   # 7 rows
+# Rows 2 / 3 / 4 (PK, Cote TN, Cote Projet) carry rotated 90° text — they
+# need extra height so the numbers don't get cropped. Multiplied by 1.4.
+ROW_HEIGHTS = [5.0, 5.0, 21.0, 21.0, 21.0, 8.0, 12.0]   # 7 rows
 CURV_DIAG_ROW_HEIGHT = 8.0
 
 
@@ -341,24 +350,27 @@ def _draw_table(msp, design: "RoadDesign"):
                 align=TextEntityAlignment.MIDDLE_CENTER,
             )
 
+        # Mid-row Y for the three vertical-text rows (height = 21.0 → midpoint at −10.5)
+        v_mid = ROW_HEIGHTS[2] / 2  # = 10.5
+
         # 2 — PK (vertical)
         t = msp.add_text(pks[i], height=1.8,
                          dxfattribs={"layer": "TABLE_TEXT"})
-        t.set_placement(Vec2(x_pos + 1, row_y[2] - 7.5),
+        t.set_placement(Vec2(x_pos + 1, row_y[2] - v_mid),
                         align=TextEntityAlignment.MIDDLE_CENTER)
         t.dxf.rotation = 90
 
         # 3 — Cote TN (vertical)
         t = msp.add_text(cote_tn[i], height=1.8,
                          dxfattribs={"layer": "TABLE_TEXT"})
-        t.set_placement(Vec2(x_pos + 0.6, row_y[3] - 7.5),
+        t.set_placement(Vec2(x_pos + 0.6, row_y[3] - v_mid),
                         align=TextEntityAlignment.MIDDLE_CENTER)
         t.dxf.rotation = 90
 
         # 4 — Cote Projet (vertical, recomputed via v_align.get_z — C2)
         t = msp.add_text(cote_proj[i], height=1.8,
                          dxfattribs={"layer": "TABLE_TEXT"})
-        t.set_placement(Vec2(x_pos + 0.6, row_y[4] - 7.5),
+        t.set_placement(Vec2(x_pos + 0.6, row_y[4] - v_mid),
                         align=TextEntityAlignment.MIDDLE_CENTER)
         t.dxf.rotation = 90
 

@@ -32,12 +32,22 @@ def main():
     parser.add_argument("--category", default="CAT_1",
                         choices=("CAT_1", "CAT_2", "CAT_3"),
                         help="REFT road category preset")
+    parser.add_argument("--company", required=True,
+                        help="Company name (mandatory — appears as the "
+                             "header on every PDF page)")
+    parser.add_argument("--projet", default="",
+                        help="Project name (cartouche)")
+    parser.add_argument("--designer", default="",
+                        help="Designer / engineer name (cartouche)")
     args = parser.parse_args()
 
     args.axe = args.axe or str(sample_axe_path())
     args.terrain = args.terrain or str(sample_terrain_path())
 
     cfg = get_preset(args.category)
+    cfg.cartouche.company_name = args.company
+    cfg.cartouche.projet = args.projet
+    cfg.cartouche.designer = args.designer
     result = build_design(
         cfg,
         axe_path=Path(args.axe),

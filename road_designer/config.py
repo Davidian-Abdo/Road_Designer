@@ -9,7 +9,7 @@ categories 1 / 2 / 3. The default is REFT_CAT_1 (80-100 km/h rural main road).
 from __future__ import annotations
 
 from dataclasses import dataclass, field, asdict
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -31,7 +31,12 @@ class TypicalSection:
 
 @dataclass
 class CartoucheInfo:
-    """Title-block fields. Filled per project via UI or CLI."""
+    """Title-block fields. Filled per project via UI or CLI.
+
+    ``company_name`` is mandatory — it appears as a professional header
+    on every PDF page. The build will refuse to start if it is empty.
+    """
+    company_name: str = ""        # MANDATORY — header on every PDF page
     projet: str = ""
     maitre_ouvrage: str = ""
     bet: str = ""
@@ -92,10 +97,13 @@ class DesignConfig:
 
     # ── Cubature / cross-section ─────────────────────────────────────────
     typical_section: TypicalSection = field(default_factory=TypicalSection)
-    cross_section_step_pk: int = 1       # every Nth station
-    cross_section_extent: float = 25.0   # ± m around axis when sampling TN
-    cross_section_scale_h: float = 100.0 # 1:100 H on PT sheets
-    cross_section_scale_v: float = 100.0 # 1:100 V on PT sheets
+    cross_section_step_pk: int = 1                 # every Nth station
+    # ``cross_section_extent`` is the half-width sampled perpendicular to
+    # the axis. ``None`` → 1.5 × road_width per side (total drawing width
+    # = 3 × road_width), the BET convention for "vue en travers serrée".
+    cross_section_extent: Optional[float] = None
+    cross_section_scale_h: float = 100.0           # 1:100 H on PT sheets (DXF)
+    cross_section_scale_v: float = 100.0           # 1:100 V on PT sheets (DXF)
 
     # ── Layout / paper ──────────────────────────────────────────────────
     sheet_length_pk: float = 500.0       # m per A1 sheet
@@ -105,6 +113,24 @@ class DesignConfig:
     # ── Bruckner diagram (Step 5) ───────────────────────────────────────
     bruckner_row_height: float = 18.0    # vertical extent of the diagram [m]
     bruckner_v_scale: float = 0.002      # m³ → drawing unit (1 m³ = 0.002 m)
+
+    # ── PDF scales (user-configurable, one set per PDF) ─────────────────
+    # Denominators of 1:N. ``None`` means "use current default behaviour".
+    #
+    # Plan PDF: defaults preserve the auto-fit-to-page rendering the user
+    # already validated. Set to e.g. ``1000`` / ``100`` to force exact
+    # scales (drawing then sized in mm at the requested ratio).
+    pdf_plan_h_scale: Optional[int] = None
+    pdf_plan_v_scale: Optional[int] = None
+    #
+    # Profils en travers: defaults to **H 1:80  V 1:15** — the detail
+    # scale BETs use on A3 portrait. With ``extent = 1.5 × road_width``
+    # (= 21 m total for a 7 m chaussée) this gives a 263 × ~300 mm
+    # drawing that fits A3 portrait comfortably. Vertical exaggeration
+    # ≈ ×5.3 emphasises cut/fill while keeping break points readable.
+    # Override either field with ``None`` to fall back to auto-picking.
+    pdf_pt_h_scale: Optional[int] = 80       # 1:80
+    pdf_pt_v_scale: Optional[int] = 15       # 1:15
 
     # ── Output filenames ────────────────────────────────────────────────
     dxf_filename: str = "road_design.dxf"

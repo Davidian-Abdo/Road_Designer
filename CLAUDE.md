@@ -297,6 +297,7 @@ Each step lands on a clean, runnable repo. After Step 9 the user opens the Strea
 | C5 | Duplicate `*_1.py` files | 0 |
 | C6 | Missing `min_straight_tangent` | 1 |
 | C7 | Repo hygiene (27 stray DXFs, no .gitignore) | 0 |
+| C8 | Profile lived in PK coordinates (0..L) while plan lived in rotated Lambert (~10⁵), pushing the profile far away and making rappel lines look horizontal. Profile was also above the plan instead of below. **Fix**: `pk_axis_x = vert_x_rot[0] + (pk−pk₀)·h_scale`; `profile_base_y = min(vert_y_rot) − profile_gap_d − elev_range·v_scale`. Pinned by `tests/test_layout.py`. | post-Step 11 |
 
 ---
 

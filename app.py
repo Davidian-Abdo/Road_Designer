@@ -189,28 +189,86 @@ with st.sidebar:
             "Profils en travers : tous les N profils",
             value=int(base_cfg.cross_section_step_pk), step=1, min_value=1,
         )
+        # Default extent = 1.5 × road_width per side (= 3× road_width total).
+        # Prefill the auto-computed default so the user sees the actual
+        # value the drawing will use. Mettre 0 pour repasser à l'auto.
+        default_extent = (base_cfg.cross_section_extent
+                          if base_cfg.cross_section_extent is not None
+                          else road_width * 1.5)
         cross_section_extent = st.number_input(
-            "Étendue PT ± [m]",
-            value=float(base_cfg.cross_section_extent), step=1.0,
+            "Étendue PT ± [m]  (défaut = 1.5 × largeur de chaussée)",
+            value=float(default_extent), step=0.5, min_value=0.0,
+            help="Demi-largeur du profil en travers. Total dessiné = 2 × "
+                 "cette valeur. Le défaut donne un total de 3 × largeur "
+                 "de chaussée.",
         )
 
-    with st.expander("Mise en page / PDF"):
+    with st.expander("Mise en page / PDF", expanded=True):
         sheet_length_pk = st.number_input(
             "Longueur par planche A1 [m]",
             value=float(base_cfg.sheet_length_pk), step=50.0,
             help="Pilote le PDF plan_par_sections.pdf : une page par tranche."
         )
-        h_scale = st.number_input("Échelle H (multiplicateur drawing)",
+        h_scale = st.number_input("Échelle H DXF (multiplicateur drawing)",
                                   value=float(base_cfg.h_scale), step=0.1)
-        v_scale = st.number_input("Échelle V (exagération)",
+        v_scale = st.number_input("Échelle V DXF (exagération)",
                                   value=float(base_cfg.v_scale), step=1.0)
         pdf_dpi = st.slider("PDF DPI", 100, 400,
                             value=int(base_cfg.pdf_dpi), step=50)
 
-    with st.expander("Cartouche"):
+        st.markdown("---")
+        st.markdown("**Échelles PDF — Profil en long (plan_par_sections.pdf)**")
+        st.caption("Laisser à 0 pour conserver l'auto-ajustement à la page "
+                   "(rendu actuel validé).")
+        col1, col2 = st.columns(2)
+        with col1:
+            pdf_plan_h = st.number_input("Échelle H : 1 / N", min_value=0,
+                                         value=0, step=100, key="plan_h",
+                                         help="Ex. 1000 → 1 m = 1 mm sur papier")
+        with col2:
+            pdf_plan_v = st.number_input("Échelle V : 1 / N", min_value=0,
+                                         value=0, step=10, key="plan_v",
+                                         help="Ex. 100 → 1 m = 10 mm sur papier (×10 exag)")
+
+        st.markdown("**Échelles PDF — Profils en travers (profils_en_travers.pdf)**")
+        st.caption(
+            "Valeurs par défaut : H 1:80 — V 1:15 (page A3 portrait, "
+            "≈ ×5.3 d'exagération verticale). "
+            "Mettre 0 pour repasser à l'auto-ajustement."
+        )
+        col3, col4 = st.columns(2)
+        with col3:
+            pdf_pt_h = st.number_input(
+                "Échelle H : 1 / N",
+                min_value=0,
+                value=int(base_cfg.pdf_pt_h_scale or 0),
+                step=10, key="pt_h",
+                help="Ex. 80 → 1 m = 12.5 mm sur papier",
+            )
+        with col4:
+            pdf_pt_v = st.number_input(
+                "Échelle V : 1 / N",
+                min_value=0,
+                value=int(base_cfg.pdf_pt_v_scale or 0),
+                step=5, key="pt_v",
+                help="Ex. 15 → 1 m = 66.7 mm sur papier "
+                     "(≈ ×5.3 exag avec H=80)",
+            )
+
+    with st.expander("Cartouche", expanded=True):
+        st.markdown("**Identité de l'entreprise (obligatoire)** —"
+                    " s'affiche en en-tête de chaque page PDF.")
+        cart_company = st.text_input(
+            "Nom de l'entreprise ★",
+            help="Apparaît en gros en haut de chaque page PDF.",
+        )
+        if not cart_company.strip():
+            st.warning("⚠️  Le nom de l'entreprise est requis pour générer les PDFs.")
         cart_projet = st.text_input("Projet")
         cart_mo = st.text_input("Maître d'ouvrage")
-        cart_bet = st.text_input("BET")
+        cart_bet = st.text_input("BET",
+                                 help="Bureau d'études responsable. Peut "
+                                      "différer de l'entreprise.")
         cart_designer = st.text_input("Concepteur")
         cart_plan_n = st.text_input("N° de plan", value="PLAN")
         cart_indice = st.text_input("Indice", value="A")
@@ -234,6 +292,7 @@ ts = TypicalSection(
     talus_remblai_h_v=talus_remblai,
 )
 cart = CartoucheInfo(
+    company_name=cart_company.strip(),
     projet=cart_projet,
     maitre_ouvrage=cart_mo,
     bet=cart_bet,
@@ -258,6 +317,10 @@ cfg = replace(
     cross_section_step_pk=int(cross_section_step_pk),
     cross_section_extent=cross_section_extent,
     pdf_dpi=int(pdf_dpi),
+    pdf_plan_h_scale=(int(pdf_plan_h) if pdf_plan_h > 0 else None),
+    pdf_plan_v_scale=(int(pdf_plan_v) if pdf_plan_v > 0 else None),
+    pdf_pt_h_scale=(int(pdf_pt_h) if pdf_pt_h > 0 else None),
+    pdf_pt_v_scale=(int(pdf_pt_v) if pdf_pt_v > 0 else None),
     typical_section=ts,
     cartouche=cart,
 )
@@ -306,7 +369,13 @@ with tab_run:
             st.info("Terrain synthétique sera généré à partir de l'axe.")
 
     with col_b:
-        run = st.button("🚀 Générer", type="primary", use_container_width=True)
+        company_ok = bool(cart_company.strip())
+        run = st.button(
+            "🚀 Générer", type="primary", use_container_width=True,
+            disabled=not company_ok,
+            help=("" if company_ok
+                  else "Renseignez d'abord le nom de l'entreprise."),
+        )
 
     if run:
         # Resolve axe path

@@ -68,8 +68,19 @@ class RoadDesign:
         # Independent variable for profile + table + Bruckner. Plan keeps
         # the rotated X; the two coordinate systems meet only at rappel
         # lines (see get_rappel_segments).
+        #
+        # Bug C8: the profile X is anchored to the rotated X of the FIRST
+        # plan vertex (vert_x_rot[0]) so the profile sits horizontally
+        # under the plan. Without this offset the profile lived in PK
+        # coordinates (0..L) while the plan lived in rotated Lambert
+        # coordinates (~10⁵), pushing the profile thousands of metres
+        # away and making rappel lines look horizontal.
         self.pk0 = float(self.vert_pks[0])
-        self.pk_axis_x = (self.vert_pks - self.pk0) * cfg.h_scale
+        self.profile_x_offset = float(self.vert_x_rot[0])
+        self.pk_axis_x = (
+            self.profile_x_offset
+            + (self.vert_pks - self.pk0) * cfg.h_scale
+        )
 
         # 4. TN at vertices and at dense samples ─────────────────────────
         self.vert_ground_z = np.array([
@@ -85,8 +96,11 @@ class RoadDesign:
         dense_xy = np.array([[x, y] for _, x, y in self.dense_points])
         dense_rot = rotate_points(dense_xy, self.rot_angle)
         self.dense_x_rot, self.dense_y_rot = dense_rot[:, 0], dense_rot[:, 1]
-        # PK-based dense X (for the smooth profile polyline)
-        self.dense_pk_x = (self.dense_pks - self.pk0) * cfg.h_scale
+        # PK-based dense X (for the smooth profile polyline) — same offset
+        self.dense_pk_x = (
+            self.profile_x_offset
+            + (self.dense_pks - self.pk0) * cfg.h_scale
+        )
 
         # 5. Vertical design — optimise PVIs then build the curves ───────
         pvi_points = self.generate_optimized_pvis()
@@ -117,10 +131,18 @@ class RoadDesign:
         )
 
         # 7. Per-segment lengths + datum + profile baseline ──────────────
+        # Bug C8 (BET convention): the profile sits BELOW the plan, with
+        # ``profile_gap_d`` of clearance between the plan's lowest point
+        # and the highest TN/projet line. The baseline is computed from
+        # the top-of-profile downward so the TN polyline never collides
+        # with the plan.
         self.seg_lengths = np.concatenate(([0], np.diff(self.vert_pks)))
         min_el = min(self.vert_ground_z.min(), self.dense_proj_z.min())
+        max_el = max(self.vert_ground_z.max(), self.dense_proj_z.max())
         self.datum = float(np.floor(min_el / 10) * 10)
-        self.profile_base_y = float(max(self.vert_y_rot) + cfg.profile_gap_d)
+        elev_range = max(0.5, max_el - self.datum)  # min 0.5 m guard
+        profile_top_y = float(min(self.vert_y_rot)) - cfg.profile_gap_d
+        self.profile_base_y = float(profile_top_y - elev_range * cfg.v_scale)
 
         # 8. Cubatures (Step 3) — filled by cubature.attach_cubatures() ──
         self.cubatures: Optional["CubatureResult"] = None
@@ -253,8 +275,10 @@ class RoadDesign:
         return float(np.interp(pk, self.vert_pks, self.vert_x_rot))
 
     def pk_to_x(self, pk: float) -> float:
-        """Profile/table X (PK-based) for a given PK."""
-        return float((pk - self.pk0) * self.cfg.h_scale)
+        """Profile/table X (PK-based, anchored to plan's first vertex)."""
+        return float(
+            self.profile_x_offset + (pk - self.pk0) * self.cfg.h_scale
+        )
 
     # ─────────────────────────────────────────────────────────── plan-view API
 
@@ -399,11 +423,19 @@ def build_design(
 
     Returns a dict with paths to the generated artifacts.
     """
+    # Mandatory: company_name must be set (used as PDF page header)
+    if not cfg.cartouche.company_name or not cfg.cartouche.company_name.strip():
+        raise ValueError(
+            "cfg.cartouche.company_name is required (it is rendered as the "
+            "header on every PDF page). Fill it in the UI or pass --company "
+            "on the CLI."
+        )
+
     from .cross_section import all_sections
     from .cubature import compute_cubatures
     from .dxf_export import write_dxf
     from .excel_export import write_xlsx
-    from .pdf_export import write_plan_pdf, write_pt_pdf
+    from .pdf_direct import write_plan_pdf, write_pt_pdf
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)

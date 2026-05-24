@@ -234,7 +234,11 @@ def section_at_pk(design: "RoadDesign", pk: float) -> CrossSectionResult:
     nx, ny = compute_normal(dx, dy)
 
     # 2) TN samples
-    extent = cfg.cross_section_extent
+    # Resolve cross_section_extent: explicit value, or 1.5 × road_width per side
+    # (total drawing width = 3 × road_width, the BET convention).
+    extent = (cfg.cross_section_extent
+              if cfg.cross_section_extent is not None
+              else cfg.road_width * 1.5)
     step = max(0.5, extent / 30)
     t_vals = np.arange(-extent, extent + step, step)
     tn_z = np.array([
