@@ -136,7 +136,7 @@ class DesignConfig:
     # reports the actually-achieved V scale in the footer.
     # Override either field with ``None`` to fall back to auto-picking.
     pdf_pt_h_scale: Optional[int] = 100      # 1:100
-    pdf_pt_v_scale: Optional[int] = 15       # 1:15
+    pdf_pt_v_scale: Optional[int] = 25      # 1:25
 
     # ── Output filenames ────────────────────────────────────────────────
     dxf_filename: str = "road_design.dxf"
