@@ -67,3 +67,27 @@ def test_rappel_lines_nearly_vertical(design):
     L = float(design.vert_pks[-1] - design.vert_pks[0])
     for (x_plan, _), (x_prof, _) in rappels:
         assert abs(x_prof - x_plan) <= L + 1e-6
+
+
+def test_pdf_plan_rotated_windows_contain_dense_axis(design):
+    """Each PDF plan window must frame the rotated dense axis.
+
+    Regression pin for the post V1 plan renderer: the plan axes are sized
+    from rotated Lambert coordinates, not from the PK-based profile axis.
+    """
+    from road_designer.pdf_direct import (
+        _plan_window_rotated_bounds,
+        _plan_windows,
+    )
+
+    for pk_start, pk_end in _plan_windows(design):
+        bounds = _plan_window_rotated_bounds(design, pk_start, pk_end)
+        assert bounds is not None
+        x_min, x_max, y_min, y_max = bounds
+        mask = ((design.dense_pks >= pk_start - 0.5)
+                & (design.dense_pks <= pk_end + 0.5))
+        assert mask.any()
+        assert float(design.dense_x_rot[mask].min()) >= x_min - 1e-9
+        assert float(design.dense_x_rot[mask].max()) <= x_max + 1e-9
+        assert float(design.dense_y_rot[mask].min()) >= y_min - 1e-9
+        assert float(design.dense_y_rot[mask].max()) <= y_max + 1e-9

@@ -94,6 +94,10 @@ class DesignConfig:
     arc_arrow_steps: int = 20
     arc_arrow_offset: float = 15.0
     straight_arrow_offset: float = 15.0
+    # Multiplier applied to the profile-number bubble (radius + text height)
+    # in both DXF modelspace and PDF plan pages. 1.5 = the BET-readable size
+    # validated post V 1.0 launch.
+    plan_bubble_scale: float = 1.5
 
     # ── Cubature / cross-section ─────────────────────────────────────────
     typical_section: TypicalSection = field(default_factory=TypicalSection)

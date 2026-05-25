@@ -53,6 +53,8 @@ LAYERS = {
     "PT_AXIS":        5,   # vertical axis tick at t=0
     # Step 8 — Cartouche
     "CARTOUCHE":      7,
+    # Post V 1.0 — rotation-aware north arrow on the plan view
+    "NORTH":          7,
 }
 
 
@@ -181,12 +183,95 @@ def _draw_plan(msp, design: "RoadDesign"):
         msp.add_line(Vec2(p1[0], p1[1]), Vec2(p2[0], p2[1]),
                      dxfattribs={"layer": "CUTTING_LINES"})
         bubble = np.array([x_rot, y_rot]) + normal * cfg.annotation_offset
-        msp.add_circle(center=Vec2(bubble[0], bubble[1]), radius=2.0,
+        # ``plan_bubble_scale`` (default 1.5) enlarges both the circle and
+        # the P# label so the BET reviewer can read the profile number on
+        # a printed A1 without zooming in. Same factor used by the PDF.
+        scale = getattr(cfg, "plan_bubble_scale", 1.5)
+        msp.add_circle(center=Vec2(bubble[0], bubble[1]),
+                       radius=2.0 * scale,
                        dxfattribs={"layer": "BUBBLES"})
         msp.add_text(
-            f"P{i + 1}", height=2.0, dxfattribs={"layer": "BUBBLES"},
+            f"P{i + 1}", height=2.0 * scale,
+            dxfattribs={"layer": "BUBBLES"},
         ).set_placement(Vec2(bubble[0], bubble[1]),
                         align=TextEntityAlignment.MIDDLE_CENTER)
+
+    # ── Rotation-aware north arrow (post V 1.0) ─────────────────────────
+    # The plan is drawn rotated by ``rot_angle = -road_angle`` so the
+    # road runs roughly left-to-right. True north in the drawing frame is
+    # therefore the original +Y direction rotated by rot_angle:
+    #     north_in_drawing = (sin(road_angle), cos(road_angle))
+    # The arrow is anchored at the top-right of the rotated-plan envelope.
+    _draw_north_arrow_dxf(msp, design)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# North arrow (rotation-aware) — compact compass + "N" label
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _draw_north_arrow_dxf(msp, design: "RoadDesign"):
+    """Draw a compact compass arrow at the top-right of the plan envelope.
+
+    True north in the drawing frame is the original +Y direction rotated by
+    ``rot_angle = -road_angle``. The rotated unit vector toward north is
+    therefore ``(sin(road_angle), cos(road_angle))``.
+
+    BET convention: arrow is always drawn pointing to true north, so on a
+    plan whose axis bends due east the arrow tilts left, on a plan whose
+    axis bends due west the arrow tilts right, etc.
+    """
+    nx = float(np.sin(design.road_angle))
+    ny = float(np.cos(design.road_angle))
+
+    # Anchor at top-right of the full rotated-plan envelope with breathing
+    # room. Include the cached road edges when available so the arrow stays
+    # clear of the platform, not just the axis vertices.
+    clouds = [np.column_stack((design.dense_x_rot, design.dense_y_rot))]
+    left = getattr(design, "plan_edges_left", None)
+    right = getattr(design, "plan_edges_right", None)
+    if left is not None and len(left):
+        clouds.append(left)
+    if right is not None and len(right):
+        clouds.append(right)
+    envelope = np.vstack(clouds)
+    x_max = float(envelope[:, 0].max())
+    y_max = float(envelope[:, 1].max())
+    pos = np.array([x_max + 25.0, y_max + 35.0])
+
+    L = 18.0               # arrow length in drawing units (m)
+    head_size = 3.5        # arrowhead barb length
+    label_gap = 5.5        # gap between arrow tip and "N" label
+
+    tail = pos - 0.5 * L * np.array([nx, ny])
+    head = pos + 0.5 * L * np.array([nx, ny])
+
+    # Shaft
+    msp.add_line(
+        Vec2(tail[0], tail[1]), Vec2(head[0], head[1]),
+        dxfattribs={"layer": "NORTH"},
+    )
+    # Arrowhead: two short barbs perpendicular to the shaft
+    perp = np.array([-ny, nx])
+    barb_base = head - head_size * np.array([nx, ny])
+    b1 = barb_base + 0.5 * head_size * perp
+    b2 = barb_base - 0.5 * head_size * perp
+    msp.add_line(
+        Vec2(head[0], head[1]), Vec2(b1[0], b1[1]),
+        dxfattribs={"layer": "NORTH"},
+    )
+    msp.add_line(
+        Vec2(head[0], head[1]), Vec2(b2[0], b2[1]),
+        dxfattribs={"layer": "NORTH"},
+    )
+    # "N" label past the arrowhead
+    label_pos = head + label_gap * np.array([nx, ny])
+    msp.add_text(
+        "N", height=4.5,
+        dxfattribs={"layer": "NORTH"},
+    ).set_placement(
+        Vec2(label_pos[0], label_pos[1]),
+        align=TextEntityAlignment.MIDDLE_CENTER,
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────

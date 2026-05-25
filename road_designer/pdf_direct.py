@@ -37,6 +37,7 @@ matplotlib.use("Agg")  # Streamlit-Cloud-safe (rule 9.3)
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.patheffects as pe
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import FancyBboxPatch, Polygon as MplPolygon, Rectangle
 
@@ -391,10 +392,23 @@ def _scale_label(h: Optional[int], v: Optional[int], default: str = "auto") -> s
 
 def _draw_plan_window(ax: plt.Axes, design: "RoadDesign",
                       pk_start: float, pk_end: float):
-    """Draw the plan view clipped to the PK window."""
-    cfg = design.cfg
+    """Draw the plan view clipped to the PK window.
 
-    # Dense polylines clipped to window
+    The axes ``ax`` MUST already be sized in **rotated Lambert coords** by
+    the caller (see ``_render_plan_page``). All primitives below are emitted
+    in those same coords; the caller's xlim/ylim does the clipping.
+
+    Parity with the DXF plan:
+      • full-document road edges, just sliced by mask (no per-page
+        ``offset_points`` recomputation → no boundary kink between sheets)
+      • per-arc-endpoint perpendicular tick + ``R=…`` label
+      • bubble + cutting line at each station, sized by ``plan_bubble_scale``
+      • straight-segment annotations filtered by PK window
+    """
+    cfg = design.cfg
+    bubble_scale = getattr(cfg, "plan_bubble_scale", 1.5)
+
+    # ── Dense axis polyline clipped to window
     mask = (design.dense_pks >= pk_start - 0.5) & (design.dense_pks <= pk_end + 0.5)
     if not mask.any():
         return
@@ -403,19 +417,33 @@ def _draw_plan_window(ax: plt.Axes, design: "RoadDesign",
     y_d = design.dense_y_rot[dense_idx]
     ax.plot(x_d, y_d, color="#1E3A8A", linewidth=1.0, zorder=4, label="Axe")
 
-    # Road edges
-    from .geometry_engine import offset_points
-    axis = np.column_stack((x_d, y_d))
-    if len(axis) >= 2:
-        left, right = offset_points(axis, cfg.road_width)
-        ax.plot(left[:, 0], left[:, 1], color="#808080", linewidth=0.6, zorder=3)
-        ax.plot(right[:, 0], right[:, 1], color="#808080", linewidth=0.6, zorder=3)
+    # ── Road edges: slice the pre-computed full-document edges so that
+    # adjacent sheets share endpoint geometry exactly (no boundary kink).
+    left_full = getattr(design, "plan_edges_left", None)
+    right_full = getattr(design, "plan_edges_right", None)
+    if (left_full is not None and right_full is not None
+            and len(left_full) == len(design.dense_x_rot)):
+        ax.plot(left_full[dense_idx, 0], left_full[dense_idx, 1],
+                color="#808080", linewidth=0.6, zorder=3)
+        ax.plot(right_full[dense_idx, 0], right_full[dense_idx, 1],
+                color="#808080", linewidth=0.6, zorder=3)
+    else:
+        # Fallback if the cache is unavailable (older RoadDesign instances)
+        from .geometry_engine import offset_points
+        axis = np.column_stack((x_d, y_d))
+        if len(axis) >= 2:
+            left, right = offset_points(axis, cfg.road_width)
+            ax.plot(left[:, 0], left[:, 1], color="#808080",
+                    linewidth=0.6, zorder=3)
+            ax.plot(right[:, 0], right[:, 1], color="#808080",
+                    linewidth=0.6, zorder=3)
 
-    # Stations within window with bubbles
+    # ── Stations within window: cutting line + enlarged bubble + P# label
+    bubble_radius = 1.8 * bubble_scale          # 2.7 m by default
+    bubble_fs = 6.0 * bubble_scale              # 9 pt by default
     v_mask = (design.vert_pks >= pk_start - 0.5) & (design.vert_pks <= pk_end + 0.5)
     for i in np.where(v_mask)[0]:
         x, y = design.vert_x_rot[i], design.vert_y_rot[i]
-        # cutting line + bubble
         if 0 < i < len(design.vert_pks) - 1:
             dx = design.vert_x_rot[i + 1] - design.vert_x_rot[i - 1]
             dy = design.vert_y_rot[i + 1] - design.vert_y_rot[i - 1]
@@ -434,26 +462,67 @@ def _draw_plan_window(ax: plt.Axes, design: "RoadDesign",
                 color="#D97706", linewidth=0.7, zorder=4)
         bx = x + nx * cfg.annotation_offset
         by = y + ny * cfg.annotation_offset
-        ax.add_patch(plt.Circle((bx, by), 1.8, facecolor="white",
-                                edgecolor="#0891B2", linewidth=0.9, zorder=5))
-        ax.text(bx, by, f"P{i + 1}", fontsize=6, ha="center", va="center",
-                color="#0891B2", zorder=6)
+        ax.add_patch(plt.Circle(
+            (bx, by), bubble_radius, facecolor="white",
+            edgecolor="#0891B2", linewidth=1.2, zorder=5,
+        ))
+        ax.text(
+            bx, by, f"P{i + 1}",
+            fontsize=bubble_fs, fontweight="bold",
+            ha="center", va="center", color="#0891B2", zorder=6,
+            path_effects=[pe.withStroke(linewidth=1.8, foreground="white")],
+        )
 
-    # Arc annotations within window
+    # ── Arc annotations within window — DXF parity:
+    # arrow polyline + midpoint "R= L=" label + per-endpoint tick + R= label
+    tick_len = cfg.tick_length
+    tick_offset = cfg.tick_offset
     for arc in design.get_arc_annotations():
         if arc["end_pk"] < pk_start or arc["start_pk"] > pk_end:
             continue
+
+        # Endpoint ticks + per-endpoint R label
+        for endpoint_xy, tangent in (
+            (arc["start_xy_rot"], arc["start_tangent_rot"]),
+            (arc["end_xy_rot"],   arc["end_tangent_rot"]),
+        ):
+            if endpoint_xy is None or tangent is None:
+                continue
+            ex, ey = endpoint_xy
+            tx, ty = float(tangent[0]), float(tangent[1])
+            tnorm = np.hypot(tx, ty) or 1.0
+            # Perpendicular to tangent (left-hand normal)
+            nxe, nye = -ty / tnorm, tx / tnorm
+            p1 = (ex + nxe * tick_len / 2, ey + nye * tick_len / 2)
+            p2 = (ex - nxe * tick_len / 2, ey - nye * tick_len / 2)
+            ax.plot([p1[0], p2[0]], [p1[1], p2[1]],
+                    color="#0891B2", linewidth=0.7, zorder=4)
+            tp = (p1[0] + nxe * tick_offset, p1[1] + nye * tick_offset)
+            ax.text(
+                tp[0], tp[1], f"R={arc['radius']:.3f}",
+                fontsize=5.5, color="#0891B2",
+                ha="left", va="center", zorder=6,
+                bbox=dict(facecolor="white", edgecolor="none",
+                          alpha=0.7, pad=0.4),
+            )
+
+        # Arrow polyline
         ax.plot(arc["arrow_points_rot"][:, 0],
                 arc["arrow_points_rot"][:, 1],
                 color="#0891B2", linewidth=0.9, zorder=4)
+        # Midpoint "R= L=" label
         ax.text(arc["midpoint_rot"][0], arc["midpoint_rot"][1],
                 arc["label"], fontsize=6.5, ha="center", va="center",
                 color="#0891B2", zorder=6,
                 bbox=dict(facecolor="white", edgecolor="none",
-                          alpha=0.7, pad=0.5))
+                          alpha=0.85, pad=0.6))
 
-    # Straight annotations within window
+    # ── Straight annotations within window (PK-filtered — was missing)
     for line in design.get_line_annotations():
+        if line.get("end_pk", float("inf")) < pk_start:
+            continue
+        if line.get("start_pk", float("-inf")) > pk_end:
+            continue
         seg = line["offset_line_rot"]
         ax.plot([seg[0, 0], seg[1, 0]], [seg[0, 1], seg[1, 1]],
                 color="#0891B2", linewidth=0.6, zorder=3)
@@ -461,7 +530,7 @@ def _draw_plan_window(ax: plt.Axes, design: "RoadDesign",
                 line["label"], fontsize=6, ha="center", va="center",
                 color="#0891B2", zorder=5,
                 bbox=dict(facecolor="white", edgecolor="none",
-                          alpha=0.7, pad=0.3))
+                          alpha=0.85, pad=0.4))
 
 
 def _draw_profile_window(
@@ -677,11 +746,15 @@ def _draw_bruckner_band(
 
 def _plan_h_geometry(cfg, pk_start: float, pk_end: float
                      ) -> Tuple[float, float]:
-    """Compute (left_frac, width_frac) for the plan/profile axes on A1.
+    """Compute (left_frac, width_frac) for the **profile** (PK-based) axes on A1.
 
     If ``cfg.pdf_plan_h_scale`` is set, the axes width is sized so that
     1 m on the road = ``1000 / pdf_plan_h_scale`` mm on paper exactly.
     Otherwise we use the historical auto-fit (4 % margin each side).
+
+    Used only by the bottom (profile + table + Bruckner) axes since
+    post-launch the plan axes are sized from the rotated extent of the
+    window — see ``_plan_axes_geometry``.
     """
     A1_W_MM_LOCAL = 841.0
     pk_len = pk_end - pk_start
@@ -697,39 +770,204 @@ def _plan_h_geometry(cfg, pk_start: float, pk_end: float
     return left_frac, width_frac
 
 
+def _plan_window_rotated_bounds(
+    design: "RoadDesign", pk_start: float, pk_end: float,
+) -> Optional[Tuple[float, float, float, float]]:
+    """Return ``(x_min, x_max, y_min, y_max)`` in ROTATED Lambert coords for
+    the data on the given PK window, padded by road edges + a paper margin.
+
+    Returns ``None`` when the window contains no dense samples (defensive).
+
+    This is what the DXF paperspace already does correctly via
+    ``pk_to_x_rot`` over a 50-sample grid. The PDF needs the same envelope
+    so that ``aspect=equal`` axes show the data — not a PK-shaped box
+    that doesn't overlap with the rotated geometry on winding roads.
+    """
+    cfg = design.cfg
+    mask = (design.dense_pks >= pk_start - 0.5) & (design.dense_pks <= pk_end + 0.5)
+    if not mask.any():
+        return None
+
+    x_d = design.dense_x_rot[mask]
+    y_d = design.dense_y_rot[mask]
+
+    # Include the road edges in the envelope — otherwise edges close to
+    # the data extent get half-clipped against the axes box.
+    edge_pad = cfg.road_width * 0.75
+    x_min = float(x_d.min()) - edge_pad
+    x_max = float(x_d.max()) + edge_pad
+    y_min = float(y_d.min()) - edge_pad
+    y_max = float(y_d.max()) + edge_pad
+
+    # Generous paper margin for bubbles + arc labels + north arrow.
+    margin = max(cfg.annotation_offset + cfg.tick_length, 35.0)
+    x_min -= margin; x_max += margin
+    y_min -= margin; y_max += margin
+    return x_min, x_max, y_min, y_max
+
+
+def _plan_axes_geometry(
+    cfg, x_min: float, x_max: float, y_min: float, y_max: float,
+    page_w_mm: float, page_h_mm: float,
+    band_top_frac: float, band_bot_frac: float,
+) -> Tuple[float, float, float, float, bool]:
+    """Compute ``(left_frac, bottom_frac, width_frac, height_frac, capped)``
+    for the plan axes box, in figure fractions of an A1 landscape page.
+
+    The plan is rendered with ``aspect=equal``, so the axes box must
+    itself have the data aspect — otherwise matplotlib silently shrinks
+    one side. Two sizing strategies:
+
+    * If ``cfg.pdf_plan_h_scale`` is set, **respect the scale** literally:
+      data → mm at ``1 m = 1000 / N mm``. If the resulting box exceeds the
+      page band, ratchet down and flag ``capped=True`` so the caller can
+      annotate the title.
+    * If not set, fit-to-band: the box uses as much of the band as
+      possible while preserving the data aspect.
+    """
+    data_w = max(1e-6, x_max - x_min)
+    data_h = max(1e-6, y_max - y_min)
+    data_aspect = data_w / data_h
+
+    band_h_mm = (band_top_frac - band_bot_frac) * page_h_mm
+    band_w_mm = page_w_mm * 0.95   # leave 2.5 % margin each side
+
+    capped = False
+    if cfg.pdf_plan_h_scale:
+        mm_per_m = 1000.0 / float(cfg.pdf_plan_h_scale)
+        w_mm = data_w * mm_per_m
+        h_mm = data_h * mm_per_m
+        # Ratchet if the requested scale doesn't fit the band
+        if w_mm > band_w_mm or h_mm > band_h_mm:
+            sx = band_w_mm / w_mm
+            sy = band_h_mm / h_mm
+            shrink = min(sx, sy)
+            w_mm *= shrink
+            h_mm *= shrink
+            capped = True
+    else:
+        # Auto-fit while preserving aspect
+        w_by_width = band_w_mm
+        h_by_width = band_w_mm / data_aspect
+        if h_by_width <= band_h_mm:
+            w_mm, h_mm = w_by_width, h_by_width
+        else:
+            h_mm = band_h_mm
+            w_mm = band_h_mm * data_aspect
+
+    width_frac = w_mm / page_w_mm
+    height_frac = h_mm / page_h_mm
+    # Centre horizontally; top-align inside the band (just under the title)
+    left_frac = (1.0 - width_frac) / 2.0
+    bottom_frac = band_top_frac - height_frac
+    return left_frac, bottom_frac, width_frac, height_frac, capped
+
+
+def _draw_north_arrow_pdf(ax: plt.Axes, road_angle: float):
+    """Compact compass arrow + "N" label at the top-right of ``ax``.
+
+    True north in the rotated drawing frame is ``(sin(road_angle),
+    cos(road_angle))``. Drawn in axes-fraction coords so its on-paper size
+    is independent of the data scale (always ~15 mm on A1).
+    """
+    nx = float(np.sin(road_angle))
+    ny = float(np.cos(road_angle))
+
+    cx, cy = 0.955, 0.92         # top-right anchor (axes fraction)
+    L = 0.045                    # arrow length (axes fraction)
+    tail = (cx - 0.5 * L * nx, cy - 0.5 * L * ny)
+    head = (cx + 0.5 * L * nx, cy + 0.5 * L * ny)
+
+    ax.annotate(
+        "", xy=head, xytext=tail,
+        xycoords="axes fraction",
+        arrowprops=dict(
+            arrowstyle="-|>", color="#1C1C1C", lw=1.6,
+            mutation_scale=14,
+        ),
+        zorder=12,
+    )
+    label_x = cx + (0.5 * L + 0.018) * nx
+    label_y = cy + (0.5 * L + 0.018) * ny
+    ax.text(
+        label_x, label_y, "N",
+        fontsize=11, fontweight="bold",
+        ha="center", va="center", color="#1C1C1C",
+        transform=ax.transAxes, zorder=12,
+        bbox=dict(facecolor="white", edgecolor="none", alpha=0.85, pad=1.0),
+    )
+
+
 def _render_plan_page(
     pdf: PdfPages, design: "RoadDesign",
     pk_start: float, pk_end: float, page_n: int, page_total: int,
 ):
-    """Render a single plan-+-profile-+-table-+-Bruckner page."""
+    """Render a single plan-+-profile-+-table-+-Bruckner page.
+
+    Post V 1.0 layout — the plan axes and the profile axes are sized
+    **independently**, mirroring how the DXF paperspace places two
+    viewports on each PLAN_xx sheet:
+
+      ┌────── slim company header ──────┐
+      │     "Tracé en plan — PK X → Y"  │
+      │   ┌───── plan axes ─────┐       │ ← rotated Lambert, aspect=equal,
+      │   │  (north arrow ↑)    │       │   sized from rotated extent +
+      │   └─────────────────────┘       │   honest scale (whitespace OK)
+      │ "Profil en long + …"            │
+      │   ┌──── profile axes ───┐       │ ← PK-based, sized via
+      │   │ TN+projet+table+    │       │   _plan_h_geometry (unchanged)
+      │   │ grade+Bruckner      │       │
+      │   └─────────────────────┘       │
+      └─────────────────────────────────┘
+    """
     fig = plt.figure(figsize=A1_LANDSCAPE_IN, facecolor="white")
     _draw_company_header(fig, design,
                          f"Plan + Profil — PK {pk_start:.0f} → {pk_end:.0f}",
                          page_n, page_total)
 
-    left_frac, width_frac = _plan_h_geometry(design.cfg, pk_start, pk_end)
+    page_w_mm = A1_LANDSCAPE_IN[0] * MM_PER_INCH
+    page_h_mm = A1_LANDSCAPE_IN[1] * MM_PER_INCH
 
-    # Three stacked drawing areas in the body — vertically split: top half
-    # for plan, bottom half for profile + table + Bruckner. If a user H
-    # scale is forced and produces narrow axes, we still keep the same
-    # vertical split so the layout stays balanced.
-    ax_plan = fig.add_axes((left_frac, 0.50, width_frac, 0.40))
-    ax_main = fig.add_axes((left_frac, 0.04, width_frac, 0.44))
-    for ax in (ax_plan, ax_main):
-        ax.set_aspect("equal")
-        ax.set_axis_off()
+    # ════════════════════════════════════════════════════════════════
+    # PLAN axes — rotated coords, honest scale
+    # ════════════════════════════════════════════════════════════════
+    bounds = _plan_window_rotated_bounds(design, pk_start, pk_end)
+    plan_capped = False
+    if bounds is not None:
+        x_min, x_max, y_min, y_max = bounds
+        # Allow the plan band to use from ~50 % up to ~90 % of figure
+        # height (just below the header at ~0.945, above the profile band).
+        plan_band_top = 0.895
+        plan_band_bot = 0.495
+        (plan_left, plan_bot, plan_w, plan_h,
+         plan_capped) = _plan_axes_geometry(
+            design.cfg, x_min, x_max, y_min, y_max,
+            page_w_mm, page_h_mm, plan_band_top, plan_band_bot,
+        )
+        ax_plan = fig.add_axes((plan_left, plan_bot, plan_w, plan_h))
+        ax_plan.set_xlim(x_min, x_max)
+        ax_plan.set_ylim(y_min, y_max)
+        ax_plan.set_aspect("equal", adjustable="box")
+        ax_plan.set_axis_off()
 
-    # ── Plan
-    _draw_plan_window(ax_plan, design, pk_start, pk_end)
-    x0_plan = design.pk_to_x(pk_start) - 30
-    x1_plan = design.pk_to_x(pk_end) + 30
-    y_plan_lo, y_plan_hi = design.vert_y_rot.min() - 25, design.vert_y_rot.max() + 25
-    ax_plan.set_xlim(x0_plan, x1_plan)
-    ax_plan.set_ylim(y_plan_lo, y_plan_hi)
-    ax_plan.set_title(f"Tracé en plan — PK {pk_start:.0f} → {pk_end:.0f}",
-                      fontsize=11, color="#1C1C1C", pad=4)
+        _draw_plan_window(ax_plan, design, pk_start, pk_end)
+        _draw_north_arrow_pdf(ax_plan, design.road_angle)
 
-    # ── Profile + table + grade band + Bruckner in ax_main
+        title = f"Tracé en plan — PK {pk_start:.0f} → {pk_end:.0f}"
+        if plan_capped:
+            title += "   (échelle ajustée à la page)"
+        fig.text(0.5, plan_band_top + 0.012, title,
+                 fontsize=12, fontweight="bold",
+                 ha="center", va="bottom", color="#1C1C1C")
+
+    # ════════════════════════════════════════════════════════════════
+    # PROFILE + TABLE + GRADE + BRUCKNER — PK-based, unchanged width logic
+    # ════════════════════════════════════════════════════════════════
+    main_left, main_width = _plan_h_geometry(design.cfg, pk_start, pk_end)
+    ax_main = fig.add_axes((main_left, 0.04, main_width, 0.44))
+    ax_main.set_aspect("equal")
+    ax_main.set_axis_off()
+
     (prof_x, ground_y, proj_y,
      prof_x_dense, proj_y_dense, base_y) = design.get_profile_data()
     _draw_profile_window(ax_main, design, pk_start, pk_end)

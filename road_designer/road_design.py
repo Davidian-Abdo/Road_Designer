@@ -102,6 +102,20 @@ class RoadDesign:
             + (self.dense_pks - self.pk0) * cfg.h_scale
         )
 
+        # 4b. Pre-compute road-edge polylines on the FULL dense axis ─────
+        # The PDF plan renderer slices these per sheet (no per-page
+        # offset_points call), eliminating the boundary-kink between
+        # adjacent sheets that one-sided differencing introduced at the
+        # slice endpoints.
+        full_axis = np.column_stack((self.dense_x_rot, self.dense_y_rot))
+        if len(full_axis) >= 2:
+            self.plan_edges_left, self.plan_edges_right = offset_points(
+                full_axis, cfg.road_width
+            )
+        else:
+            self.plan_edges_left = np.empty((0, 2))
+            self.plan_edges_right = np.empty((0, 2))
+
         # 5. Vertical design — optimise PVIs then build the curves ───────
         pvi_points = self.generate_optimized_pvis()
         self.v_align = VerticalAlignment(
@@ -356,6 +370,8 @@ class RoadDesign:
             )[0]
             yield {
                 "type": "line",
+                "start_pk": seg.start_pk,
+                "end_pk": seg.end_pk,
                 "offset_line_rot": offset_line_rot,
                 "midpoint_rot": mid_rot,
                 "label": f"L={seg.length:.3f}",
