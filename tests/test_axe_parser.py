@@ -71,6 +71,21 @@ def test_minimal_straight(tmp_path):
     assert math.isclose(segs[0].length, 100.0, abs_tol=1e-6)
 
 
+def test_utf8_bom_axe_file_parses(tmp_path):
+    """Windows editors often save TXT files with a UTF-8 BOM."""
+    axe = tmp_path / "axe_bom.txt"
+    axe.write_text(textwrap.dedent("""\
+        0.0  0.0   0.0
+        D1   GIS=0g   100.0
+        100.0 100.0   0.0
+    """), encoding="utf-8-sig")
+
+    segs = AlignmentParser(axe).parse()
+
+    assert len(segs) == 1
+    assert isinstance(segs[0], LineSegment)
+
+
 def test_first_line_three_floats(tmp_path):
     axe = tmp_path / "axe.txt"
     axe.write_text("0.0  0.0\nD1   GIS=0g   1.0\n1.0  1.0  0.0\n")

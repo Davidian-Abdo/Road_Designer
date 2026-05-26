@@ -28,7 +28,7 @@ Alors j'ai construit **Road Designer V 1.0** — l'outil que j'aurais voulu avoi
 
 🗺️ Un **PDF Plan + Profil en long** au format A1 paysage, une page par tranche de route configurable (par défaut 500 m), avec **cartouche professionnel** : nom d'entreprise en gros, badge « Dossier de projet », titre projet, blocs informations / cubatures (avec barres horizontales déblai vs remblai) / indice / date / n° de plan.
 
-📏 Un **PDF Profils en travers** au format A4 portrait, une page par profil — section type configurable (chaussée + accotements + fossés + talus), polygones déblai/remblai hachurés, échelles H 1:100 / V 1:15 par défaut (auto-ajustées si les données débordent), en-tête entreprise sur chaque page.
+📏 Un **PDF Profils en travers** au format A4 portrait, une page par profil — section type configurable (chaussée + accotements + fossés + talus), polygones déblai/remblai hachurés, échelles H 1:100 / V 1:25 par défaut (auto-ajustées si les données débordent), en-tête entreprise sur chaque page.
 
 🔬 **Sous le capot** :
 La ligne rouge n'est pas tracée à la main — elle est **optimisée par SLSQP** : minimise ∑\|Z_projet − Z_TN\| sous trois contraintes (pente max, rayon minimum sommet/cuvette par REFT, longueur minimum de tangente droite entre deux courbes verticales). Les paraboles symétriques sont sélectionnées avec un rayon par PVI (le maximum praticable, plafonné par REFT). Les cubatures utilisent un vrai split à h = 0 — pas un mélange déblai/remblai dans le même segment.

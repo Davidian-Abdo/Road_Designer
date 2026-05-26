@@ -149,7 +149,7 @@ Voir [`CLAUDE.md`](CLAUDE.md) pour la description détaillée du pipeline, le vo
 | PDF | Page | H | V | Exagération verticale |
 |---|---|---|---|---|
 | Plan + profil en long (`plan_par_sections.pdf`) | A1 paysage | auto-ajusté (~1:700-1:1000) | auto (~1:70-1:100) | ≈ ×10 |
-| Profils en travers (`profils_en_travers.pdf`) | A4 portrait | **1:100** | **1:15** | ≈ ×6.7 |
+| Profils en travers (`profils_en_travers.pdf`) | A4 portrait | **1:100** | **1:25** | ≈ ×4 |
 
 Les quatre échelles (deux par PDF) sont **modifiables via l'UI** (champ « Mise en page / PDF »). Mettre 0 pour repasser à l'auto-ajustement.
 

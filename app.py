@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 import streamlit as st
 
 from road_designer.config import (
+    BeamStackContact,
     CartoucheInfo,
     DesignConfig,
     TypicalSection,
@@ -46,12 +47,285 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("🛣️ Road Designer V 1.0")
+st.markdown(
+    """
+    <style>
+      .beamstack-header {
+        display: flex;
+        align-items: center;
+        gap: 1.1rem;
+        padding: 0.9rem 0 1.0rem 0;
+        margin-bottom: 0.3rem;
+        border-bottom: 1px solid rgba(49, 64, 86, 0.18);
+      }
+      .beamstack-name {
+        font-size: clamp(1.8rem, 3.2vw, 4rem);
+        line-height: 0.95;
+        font-weight: 800;
+        letter-spacing: 0;
+        color: #18212f;
+      }
+      .beamstack-divider {
+        width: 3px;
+        height: clamp(2.2rem, 4vw, 3.0rem);
+        background: #d92727;
+        border-radius: 2px;
+        flex: 0 0 auto;
+      }
+      .beamstack-mission {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.18rem;
+        max-width: 42rem;
+        min-width: 0;
+      }
+      .beamstack-mission-main {
+        font-size: clamp(0.9rem, 1.35vw, 1.15rem);
+        line-height: 1;
+        font-weight: 700;
+        color: #263246;
+        text-transform: uppercase;
+      }
+      .beamstack-mission-sub {
+        font-size: clamp(0.82rem, 1.1vw, 1.0rem);
+        line-height: 1.1;
+        font-weight: 500;
+        color: #5c6678;
+      }
+      .road-designer-title {
+        margin: 1.05rem 0 0.15rem 0;
+        font-size: clamp(2.2rem, 4.2vw, 4.8rem);
+        line-height: 1.0;
+        font-weight: 820;
+        letter-spacing: 0;
+        color: #202a3a;
+      }
+      .beamstack-ayah {
+        margin: 0.85rem 0 0.95rem 0;
+        padding: 0.75rem 1rem;
+        border-left: 3px solid #d92727;
+        background: rgba(249, 250, 252, 0.82);
+      }
+      .beamstack-ayah-ar {
+        direction: rtl;
+        text-align: left;
+        font-family: "Amiri", "Scheherazade New", "Times New Roman", serif;
+        font-size: clamp(1.05rem, 1.65vw, 1.35rem);
+        line-height: 1.8;
+        color: #1f2937;
+      }
+      .beamstack-ayah-meta {
+        margin-top: 0.25rem;
+        display: flex;
+        justify-content: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+        font-size: 0.82rem;
+        line-height: 1.35;
+        color: #697386;
+      }
+      .beamstack-app-band {
+        margin: 1.0rem 0 1.25rem 0;
+        padding: 1.0rem 1.1rem;
+        border: 1px solid rgba(49, 64, 86, 0.14);
+        border-radius: 8px;
+        background: #ffffff;
+      }
+      .beamstack-app-kicker {
+        margin-bottom: 0.35rem;
+        font-size: 0.78rem;
+        font-weight: 760;
+        text-transform: uppercase;
+        color: #d92727;
+      }
+      .beamstack-app-summary {
+        max-width: 72rem;
+        margin-bottom: 0.85rem;
+        font-size: clamp(0.98rem, 1.25vw, 1.12rem);
+        line-height: 1.45;
+        color: #2e394c;
+      }
+      .beamstack-flow-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+      .beamstack-flow-item {
+        border-top: 2px solid rgba(217, 39, 39, 0.8);
+        padding-top: 0.55rem;
+        min-width: 0;
+      }
+      .beamstack-flow-label {
+        font-size: 0.78rem;
+        font-weight: 760;
+        color: #1f2937;
+      }
+      .beamstack-flow-text {
+        margin-top: 0.22rem;
+        font-size: 0.88rem;
+        line-height: 1.35;
+        color: #697386;
+      }
+      .beamstack-contact-footer {
+        margin: 2.2rem 0 0.5rem 0;
+        padding: 1.15rem 1.25rem;
+        border-top: 1px solid rgba(49, 64, 86, 0.18);
+        border-bottom: 1px solid rgba(49, 64, 86, 0.12);
+        background: linear-gradient(90deg, rgba(249, 250, 252, 0.96), #ffffff);
+      }
+      .beamstack-contact-title {
+        margin-bottom: 0.35rem;
+        font-size: clamp(1.15rem, 1.7vw, 1.45rem);
+        line-height: 1.2;
+        font-weight: 800;
+        color: #202a3a;
+      }
+      .beamstack-contact-text {
+        max-width: 76rem;
+        font-size: 0.98rem;
+        line-height: 1.45;
+        color: #5c6678;
+      }
+      .beamstack-contact-note {
+        margin-top: 0.45rem;
+        font-size: 0.86rem;
+        line-height: 1.35;
+        color: #d92727;
+        font-weight: 700;
+      }
+      .beamstack-contact-links {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+        margin-top: 0.85rem;
+      }
+      .beamstack-contact-link {
+        display: inline-flex;
+        align-items: center;
+        min-height: 2.25rem;
+        padding: 0.45rem 0.7rem;
+        border: 1px solid rgba(49, 64, 86, 0.16);
+        border-radius: 6px;
+        color: #202a3a !important;
+        text-decoration: none !important;
+        font-size: 0.9rem;
+        font-weight: 720;
+        background: #ffffff;
+      }
+      .beamstack-contact-link:hover {
+        border-color: rgba(217, 39, 39, 0.55);
+        color: #d92727 !important;
+      }
+      .beamstack-software-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.65rem;
+        margin-top: 0.75rem;
+      }
+      .beamstack-software-item {
+        padding: 0.7rem 0.8rem;
+        border-left: 3px solid rgba(217, 39, 39, 0.8);
+        background: rgba(249, 250, 252, 0.82);
+      }
+      .beamstack-software-item a {
+        color: #202a3a !important;
+        font-weight: 780;
+        text-decoration: none !important;
+      }
+      .beamstack-software-item a:hover {
+        color: #d92727 !important;
+      }
+      .beamstack-software-desc {
+        margin-top: 0.2rem;
+        font-size: 0.83rem;
+        line-height: 1.35;
+        color: #697386;
+      }
+      @media (max-width: 760px) {
+        .beamstack-header {
+          align-items: flex-start;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+        }
+        .beamstack-divider {
+          display: none;
+        }
+        .beamstack-mission {
+          flex-basis: 100%;
+        }
+        .beamstack-ayah {
+          padding: 0.7rem 0.8rem;
+        }
+        .beamstack-flow-grid {
+          grid-template-columns: 1fr;
+        }
+        .beamstack-contact-footer {
+          padding: 1rem 0.85rem;
+        }
+      }
+    </style>
+    <header class="beamstack-header" aria-label="BeamStack">
+      <div class="beamstack-name">BeamStack</div>
+      <div class="beamstack-divider" aria-hidden="true"></div>
+      <div class="beamstack-mission">
+        <div class="beamstack-mission-main">Software solutions for engineers</div>
+        <div class="beamstack-mission-sub">High-level engineering tools accessible to every engineer.</div>
+      </div>
+    </header>
+    <section class="beamstack-ayah" aria-label="Sourate Taha 20:114">
+      <div class="beamstack-ayah-ar">
+      وَقُل رَّبِّ زِدْنِي عِلْمًا
+      </div>
+      <div class="beamstack-ayah-meta">
+        <span> said The Great Designer : Sourate Taha, 20:114</span>
+        <span>« Seigneur, accrois-moi en science. »</span>
+      </div>
+    </section>
+    <div class="road-designer-title">Road Designer V 1.0</div>
+    """,
+    unsafe_allow_html=True,
+)
 st.caption(
     "Génération de livrables BET (DXF + XLSX + PDF) à partir d'un fichier "
     "axe et d'un MNT. Standards REFT (Maroc). Toutes les annotations sont en "
     "français."
 )
+
+st.markdown(
+    """
+    <section class="beamstack-app-band" aria-label="Road Designer workflow">
+      <div class="beamstack-app-kicker">Outil métier pour bureaux d'études</div>
+      <div class="beamstack-app-summary">
+        Road Designer transforme un axe en plan et un MNT en livrables prêts à relire :
+        plan, profil en long, profils en travers, cubatures, Bruckner, Excel et PDFs.
+        BeamStack construit ce type d'outils pour rendre les workflows d'ingénierie
+        de haut niveau accessibles aux petites équipes comme aux grandes structures.
+      </div>
+      <div class="beamstack-flow-grid">
+        <div class="beamstack-flow-item">
+          <div class="beamstack-flow-label">1. Entrées</div>
+          <div class="beamstack-flow-text">Axe TXT, terrain CSV, catégorie REFT et cartouche.</div>
+        </div>
+        <div class="beamstack-flow-item">
+          <div class="beamstack-flow-label">2. Calcul</div>
+          <div class="beamstack-flow-text">Ligne rouge optimisée, profils et cubatures cohérents.</div>
+        </div>
+        <div class="beamstack-flow-item">
+          <div class="beamstack-flow-label">3. Livrables</div>
+          <div class="beamstack-flow-text">DXF, XLSX, PDF plan et PDF profils en travers.</div>
+        </div>
+        <div class="beamstack-flow-item">
+          <div class="beamstack-flow-label">4. Idée logicielle</div>
+        <div class="beamstack-flow-text">Un workflow répétitif peut devenir un outil métier BeamStack.</div>
+        </div>
+      </div>
+    </section>
+    """,
+    unsafe_allow_html=True,
+)
+
+beamstack_contact = BeamStackContact()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -61,10 +335,39 @@ st.caption(
 with st.sidebar:
     st.header("1. Données d'entrée")
 
-    use_sample_axe = st.checkbox("Utiliser l'axe d'exemple", value=True,
-                                 help="samples/sample_axe.txt")
-    axe_upload = (None if use_sample_axe
-                  else st.file_uploader("Fichier axe (.txt)", type=["txt"]))
+    axe_mode = st.radio(
+        "Axe en plan",
+        ("Exemple bundle", "Charger un TXT"),
+        index=0,
+        help="Fichier axe au format texte : station de départ, segments D, courbes C.",
+    )
+    use_sample_axe = axe_mode == "Exemple bundle"
+    axe_upload = None
+    if not use_sample_axe:
+        axe_upload = st.file_uploader(
+            "Fichier axe en plan (.txt)",
+            type=["txt"],
+            help="Format attendu : PK X Y, puis blocs D/C avec stations d'arrivée.",
+        )
+
+    with st.expander("Voir un exemple de fichier axe", expanded=not use_sample_axe):
+        st.caption("Les 4 premières lignes du fichier d'exemple montrent la forme attendue :")
+        axe_example = "\n".join(
+            sample_axe_path().read_text(encoding="utf-8").splitlines()[:4]
+        )
+        st.code(axe_example, language="text")
+        st.caption(
+            "Ligne 1 : PK X Y. Les blocs D décrivent les segments droits ; "
+            "les blocs C décrivent les courbes avec centre XC/YC et rayon R."
+        )
+
+    st.download_button(
+        "Télécharger l'exemple axe TXT",
+        data=sample_axe_bytes(),
+        file_name="sample_axe.txt",
+        mime="text/plain",
+        use_container_width=True,
+    )
 
     st.markdown("---")
     terrain_mode = st.radio(
@@ -75,6 +378,14 @@ with st.sidebar:
     terrain_upload = None
     if terrain_mode == "Charger un CSV X,Y,Z":
         terrain_upload = st.file_uploader("Terrain CSV", type=["csv"])
+
+    st.download_button(
+        "Télécharger l'exemple terrain CSV",
+        data=sample_terrain_bytes(),
+        file_name="sample_terrain.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
 
     if terrain_mode == "Générer synthétique":
         st.caption("Génère un MNT plausible autour de l'axe.")
@@ -105,8 +416,9 @@ with st.sidebar:
     st.header("3. Paramètres de conception")
     with st.expander("Géométrie horizontale", expanded=True):
         road_width = st.number_input(
-            "Largeur de chaussée [m]",
+            "Largeur de chaussée - plan et section type [m]",
             value=float(base_cfg.road_width), step=0.5,
+            help="Une seule largeur est utilisée pour les bords en plan, les profils en travers et les cubatures.",
         )
         profile_sampling = st.number_input(
             "Pas d'échantillonnage [m]",
@@ -149,9 +461,10 @@ with st.sidebar:
         )
 
     with st.expander("Section type / cubatures"):
-        chaussee_width = st.number_input(
-            "Largeur chaussée (section type) [m]",
-            value=float(base_cfg.typical_section.chaussee_width), step=0.5,
+        chaussee_width = road_width
+        st.caption(
+            f"Largeur de chaussée utilisée pour la section type : {chaussee_width:.2f} m "
+            "(définie dans « Géométrie horizontale »)."
         )
         crown_slope = st.number_input(
             "Dévers normal [%]",
@@ -232,9 +545,9 @@ with st.sidebar:
 
         st.markdown("**Échelles PDF — Profils en travers (profils_en_travers.pdf)**")
         st.caption(
-            "Valeurs par défaut : **H 1:100 — V 1:15** (page A4 portrait, "
-            "≈ ×6.7 d'exagération verticale). "
-            "Si les données sont trop hautes pour A4 à 1:15, l'échelle V "
+            "Valeurs par défaut : **H 1:100 — V 1:25** (page A4 portrait, "
+            "≈ ×4 d'exagération verticale). "
+            "Si les données sont trop hautes pour A4 à 1:25, l'échelle V "
             "est ajustée et un avis est ajouté au pied de page. "
             "Mettre 0 pour repasser à l'auto-ajustement."
         )
@@ -253,8 +566,8 @@ with st.sidebar:
                 min_value=0,
                 value=int(base_cfg.pdf_pt_v_scale or 0),
                 step=5, key="pt_v",
-                help="Ex. 15 → 1 m = 66.7 mm sur papier "
-                     "(≈ ×6.7 exag avec H=100)",
+                help="Ex. 25 → 1 m = 40 mm sur papier "
+                     "(≈ ×4 exag avec H=100)",
             )
 
     with st.expander("Cartouche", expanded=True):
@@ -332,8 +645,14 @@ cfg = replace(
 # Main area
 # ─────────────────────────────────────────────────────────────────────────────
 
-tab_run, tab_table, tab_preview, tab_help = st.tabs(
-    ["▶️ Calcul + téléchargements", "📋 Tableau", "🖼️ Aperçus", "📚 Aide"]
+tab_run, tab_table, tab_preview, tab_contact, tab_help = st.tabs(
+    [
+        "▶️ Calcul + téléchargements",
+        "📋 Tableau",
+        "🖼️ Aperçus",
+        "💡 Idée de logiciel",
+        "📚 Aide",
+    ]
 )
 
 with tab_help:
@@ -342,6 +661,91 @@ with tab_help:
         st.markdown(p.read_text(encoding="utf-8"))
     else:
         st.info("docs/INPUT_FORMAT.md introuvable.")
+
+
+with tab_contact:
+    st.subheader("Vous avez une idée de logiciel d'ingénierie ?")
+    st.write(
+        "Décrivez le calcul, le document ou le workflow que vous répétez souvent. "
+        "Cette fiche prépare un brief clair à transmettre à BeamStack."
+    )
+
+    with st.form("beamstack_idea_form"):
+        col_idea_a, col_idea_b = st.columns(2)
+        with col_idea_a:
+            idea_name = st.text_input("Nom du projet ou de l'organisme")
+            contact_ref = st.text_input("Contact à rappeler")
+            domain = st.selectbox(
+                "Domaine",
+                (
+                    "Routes / VRD",
+                    "Structure",
+                    "Hydraulique",
+                    "Topographie",
+                    "Géotechnique",
+                    "Autre workflow d'ingénierie",
+                ),
+            )
+        with col_idea_b:
+            current_tools = st.text_input(
+                "Outils actuels",
+                placeholder="Excel, AutoCAD, Civil 3D, scripts, calcul manuel...",
+            )
+            expected_output = st.text_input(
+                "Livrable attendu",
+                placeholder="PDF, DXF, XLSX, rapport, tableau de contrôle...",
+            )
+            urgency = st.selectbox(
+                "Priorité",
+                ("Exploration", "Prototype rapide", "Projet à cadrer", "Besoin urgent"),
+            )
+
+        workflow_problem = st.text_area(
+            "Workflow à transformer en logiciel",
+            placeholder=(
+                "Exemple : je saisis des données terrain, je refais les mêmes "
+                "calculs, puis je prépare un rapport et des plans..."
+            ),
+            height=130,
+        )
+        success_criteria = st.text_area(
+            "À quoi ressemble une bonne solution ?",
+            placeholder=(
+                "Exemple : moins d'erreurs, génération automatique des livrables, "
+                "contrôles normatifs, interface simple pour l'équipe..."
+            ),
+            height=100,
+        )
+        submitted_idea = st.form_submit_button("Préparer le brief")
+
+    if submitted_idea:
+        brief = "\n".join(
+            [
+                "Brief idée logicielle - BeamStack",
+                "",
+                f"Projet / organisme : {idea_name or '-'}",
+                f"Contact : {contact_ref or '-'}",
+                f"Domaine : {domain}",
+                f"Outils actuels : {current_tools or '-'}",
+                f"Livrable attendu : {expected_output or '-'}",
+                f"Priorité : {urgency}",
+                "",
+                "Workflow à transformer :",
+                workflow_problem or "-",
+                "",
+                "Critères de réussite :",
+                success_criteria or "-",
+            ]
+        )
+        st.success("Brief préparé.")
+        st.text_area("Brief à envoyer à BeamStack", brief, height=300)
+        st.download_button(
+            "Télécharger le brief TXT",
+            data=brief.encode("utf-8"),
+            file_name="brief_idee_logiciel_beamstack.txt",
+            mime="text/plain",
+            use_container_width=True,
+        )
 
 
 # Persist result between reruns
@@ -372,11 +776,25 @@ with tab_run:
 
     with col_b:
         company_ok = bool(cart_company.strip())
+        axe_ok = use_sample_axe or axe_upload is not None
+        terrain_ok = (
+            terrain_mode == "Exemple bundle"
+            or terrain_mode == "Générer synthétique"
+            or terrain_upload is not None
+        )
+        ready_to_run = company_ok and axe_ok and terrain_ok
+        missing = []
+        if not company_ok:
+            missing.append("nom de l'entreprise")
+        if not axe_ok:
+            missing.append("fichier axe en plan")
+        if not terrain_ok:
+            missing.append("CSV terrain")
         run = st.button(
             "🚀 Générer", type="primary", use_container_width=True,
-            disabled=not company_ok,
-            help=("" if company_ok
-                  else "Renseignez d'abord le nom de l'entreprise."),
+            disabled=not ready_to_run,
+            help=("" if ready_to_run
+                  else "Renseignez : " + ", ".join(missing) + "."),
         )
 
     if run:
@@ -392,7 +810,7 @@ with tab_run:
             st.stop()
         else:
             axe_path = tmp / "axe.txt"
-            axe_path.write_bytes(axe_upload.read())
+            axe_path.write_bytes(axe_upload.getvalue())
 
         # Resolve terrain path
         if terrain_mode == "Exemple bundle":
@@ -402,7 +820,7 @@ with tab_run:
                 st.error("Veuillez charger un CSV terrain.")
                 st.stop()
             terrain_path = tmp / "terrain.csv"
-            terrain_path.write_bytes(terrain_upload.read())
+            terrain_path.write_bytes(terrain_upload.getvalue())
         else:
             terrain_path = tmp / "terrain_synth.csv"
             with st.spinner("Génération du terrain synthétique…"):
@@ -508,3 +926,42 @@ with tab_preview:
         ax2.set_xlabel("PK (m)"); ax2.set_ylabel("M(PK) [m³]")
         ax2.grid(True, alpha=0.3)
         st.pyplot(fig2)
+
+
+software_links_html = "\n".join(
+    (
+        '<div class="beamstack-software-item">'
+        f'<a href="{link.url}" target="_blank" rel="noopener noreferrer">{link.name}</a>'
+        f'<div class="beamstack-software-desc">{link.description}</div>'
+        '</div>'
+    )
+    for link in beamstack_contact.software_links
+)
+
+st.markdown(
+    f"""
+    <footer class="beamstack-contact-footer" aria-label="Contact BeamStack">
+      <div class="beamstack-contact-title">Un logiciel métier à construire ?</div>
+      <div class="beamstack-contact-text">
+        Si vous avez une idée de logiciel, un problème technique à résoudre
+        ou un workflow répétitif qui prend trop de temps, contactez BeamStack.
+        Nous transformons vos méthodes, calculs et livrables en outils
+        professionnels, clairs et accessibles.
+      </div>
+      <div class="beamstack-contact-links">
+        <a class="beamstack-contact-link" href="mailto:{beamstack_contact.email}">
+          Contact : {beamstack_contact.email}
+        </a>
+      </div>
+      <div class="beamstack-contact-note">Voir nos logiciels</div>
+      <div class="beamstack-software-list">
+        {software_links_html}
+      </div>
+      <div class="beamstack-contact-note">
+        Décrivez votre besoin dans l'onglet « Idée de logiciel » :
+        nous le construirons pour vous.
+      </div>
+    </footer>
+    """,
+    unsafe_allow_html=True,
+)

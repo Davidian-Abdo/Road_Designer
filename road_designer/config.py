@@ -9,12 +9,33 @@ categories 1 / 2 / 3. The default is REFT_CAT_1 (80-100 km/h rural main road).
 from __future__ import annotations
 
 from dataclasses import dataclass, field, asdict
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Sub-configs
 # ─────────────────────────────────────────────────────────────────────────────
+
+@dataclass(frozen=True)
+class SoftwareLink:
+    """Public BeamStack software link shown in the Streamlit footer."""
+    name: str
+    url: str
+    description: str = ""
+
+
+@dataclass(frozen=True)
+class BeamStackContact:
+    """BeamStack contact details shown by the Streamlit UI."""
+    email: str = "Askdaoudi@gmail.com"
+    software_links: Tuple[SoftwareLink, ...] = (
+        SoftwareLink(
+            name="Gantt-Chart-Builder V1.0",
+            url="https://gantt-chart-builder.streamlit.app/",
+            description="Génération de gantt-chartt telechargeable interactive offline apartir de ficher excel.",
+        ),
+    )
+
 
 @dataclass
 class TypicalSection:
@@ -127,12 +148,12 @@ class DesignConfig:
     pdf_plan_h_scale: Optional[int] = None
     pdf_plan_v_scale: Optional[int] = None
     #
-    # Profils en travers: defaults to **H 1:100  V 1:15** — the standard
+    # Profils en travers: defaults to **H 1:100  V 1:25** — the standard
     # BET detail scale on A4 portrait. With ``extent = 1.5 × road_width``
     # (= 21 m total for a 7 m chaussée) the drawing fills the A4 width.
-    # Vertical exaggeration ≈ ×6.7 emphasises cut/fill while keeping the
+    # Vertical exaggeration ≈ ×4 emphasises cut/fill while keeping the
     # typical-section break points readable. If the data is too tall
-    # for A4 at V 1:15, the renderer scales the V axis down to fit and
+    # for A4 at V 1:25, the renderer scales the V axis down to fit and
     # reports the actually-achieved V scale in the footer.
     # Override either field with ``None`` to fall back to auto-picking.
     pdf_pt_h_scale: Optional[int] = 100      # 1:100

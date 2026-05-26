@@ -434,7 +434,7 @@ class DesignConfig:
     pdf_plan_h_scale:       Optional[int] = None   # None = auto-fit (current look)
     pdf_plan_v_scale:       Optional[int] = None
     pdf_pt_h_scale:         Optional[int] = 100    # default 1:100 (A4 portrait)
-    pdf_pt_v_scale:         Optional[int] = 15     # default 1:15  (×6.7 exag)
+    pdf_pt_v_scale:         Optional[int] = 25     # default 1:25  (×4 exag)
 
     # Output filenames
     dxf_filename:           str = "road_design.dxf"
@@ -555,7 +555,7 @@ Two PDFs, both **fully vector**, rendered directly from `RoadDesign` data via ma
 | File | Page | Default H | Default V | Pages |
 |---|---|---|---|---|
 | `plan_par_sections.pdf` | A1 landscape | auto-fit | auto-fit | 1 cover + ⌈L / sheet_length_pk⌉ |
-| `profils_en_travers.pdf` | A4 portrait | 1:100 | 1:15 | 1 cover + N profils |
+| `profils_en_travers.pdf` | A4 portrait | 1:100 | 1:25 | 1 cover + N profils |
 
 **Cover page** structure (same for both PDFs, sized per format):
 1. **Top band** — company name (28–44 pt, bold) + red accent line + small "ROAD DESIGNER V 1.0" subtitle.
@@ -641,7 +641,7 @@ Two PDFs, both **fully vector**, rendered directly from `RoadDesign` data via ma
 | post | Issue 1 (vertical guides profile ↔ table) | ✅ |
 | post | Issue 3 (PDF DXF-fidelity via direct matplotlib) | ✅ |
 | post | Configurable PDF scales (4 knobs, two per PDF) + professional cover | ✅ |
-| post | PT defaults H 1:100 / V 1:15 on A4 with auto-cap to body | ✅ |
+| post | PT defaults H 1:100 / V 1:25 on A4 with auto-cap to body | ✅ |
 
 **Open for V 1.x:** clothoïdes, calcul dévers, vérification SSD, import LandXML, multi-tracé pour études comparatives.
 

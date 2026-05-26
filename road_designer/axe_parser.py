@@ -109,8 +109,11 @@ class AlignmentParser:
     # ------------------------------------------------------------------ API
 
     def parse(self):
-        with open(self.filename, "r", encoding="utf-8") as f:
+        with open(self.filename, "r", encoding="utf-8-sig") as f:
             lines = [ln.rstrip("\n") for ln in f if ln.strip() != ""]
+
+        if not lines:
+            raise ValueError(f"Axe file is empty: {self.filename}")
 
         first = lines[0].split()
         if len(first) != 3:
