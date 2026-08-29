@@ -4,7 +4,10 @@ A Python application that produces BET-grade civil-engineering road-design deliv
 
 Target user: a road-design civil engineer working in a Bureau d'Études Techniques (BET), Maghreb context, following Moroccan REFT standards (or equivalent ARP/ICTAAL). All on-drawing labels are in French.
 
-Deployment: Streamlit Community Cloud (web UI) and a local CLI (`python main.py`).
+Deployment: three independent surfaces share the one `road_designer/` engine — a Streamlit Community
+Cloud app (`frontends/streamlit/`), a React SPA on Cloudflare Pages (`frontends/react/`) backed by a
+FastAPI service on Hugging Face Spaces (`backend/`), and the local CLI (`python main.py`). See
+[§ 15](#15-deployment-architecture--three-surfaces).
 
 ---
 
@@ -24,6 +27,7 @@ Deployment: Streamlit Community Cloud (web UI) and a local CLI (`python main.py`
 12. [Bug history (C1–C8 + Issues)](#12-bug-history-c1c8--issues)
 13. [Roadmap status](#13-roadmap-status)
 14. [Version](#14-version)
+15. [Deployment architecture — three surfaces](#15-deployment-architecture--three-surfaces)
 
 ---
 
@@ -98,21 +102,24 @@ Vertical curves are symmetric parabolas with a per-PVI radius (K-value): the **m
 
 ## 3. Repository layout
 
-Current layout (everything below is committed):
+Current layout (everything below is committed). See [§ 15](#15-deployment-architecture--three-surfaces)
+for how `backend/` and `frontends/` fit into the three-surface deployment story.
 
 ```
 Road_designe/
 ├── CLAUDE.md                      ← this file (V 1.0 reference for future sessions)
+├── AGENTS.md                      ← same content, for non-Claude agents
 ├── README.md                      ← user-facing intro (French)
-├── requirements.txt               ← pinned, Python 3.12 target
-├── .gitignore                     ← *.dxf, *.xlsx, *.pdf, Road_venv/, output/
-├── .streamlit/
-│   └── config.toml                ← maxUploadSize = 20 MB, light theme
+├── DEPLOYMENT.md                  ← beginner-oriented step-by-step deploy guide (see § 15)
+├── requirements.txt               ← pinned, Python 3.12 target (engine + CLI + Streamlit)
+├── .gitignore                     ← *.dxf, *.xlsx, *.pdf, Road_venv/, .venv/, output/
+├── .github/
+│   └── workflows/
+│       └── keep-alive-hf-space.yml ← cron ping to keep the HF Space warm (needs HF_SPACE_HEALTH_URL secret)
 │
-├── app.py                         ← Streamlit entry point
-├── main.py                        ← CLI entry point
+├── main.py                        ← CLI entry point (unchanged)
 │
-├── road_designer/                 ← installable package
+├── road_designer/                 ← installable package (the engine — see constraints in § 15)
 │   ├── __init__.py                ← public API exports
 │   ├── config.py                  ← @dataclass DesignConfig + REFT_CAT_1/2/3
 │   ├── mnt_engine.py              ← TerrainModel (TIN + KDTree fallback)
@@ -137,7 +144,7 @@ Road_designe/
 │   ├── INPUT_FORMAT.md            ← axe + CSV grammar with annotated example
 │   └── LINKEDIN_POST.md           ← marketing copy for the V 1.0 launch
 │
-├── tests/                         ← pytest suite (39 tests)
+├── tests/                         ← pytest suite (engine tests, unchanged by the frontend work)
 │   ├── conftest.py                ← shared fixtures (axe_path, terrain_path, design)
 │   ├── test_axe_parser.py         ← D+C grammar, station continuity, sampling
 │   ├── test_vertical_alignment.py ← parabolic continuity, REFT floor, C6
@@ -146,7 +153,32 @@ Road_designe/
 │   ├── test_layout.py             ← profile-below-plan, monotonic PK, V scale
 │   └── test_pdf_contract.py       ← company_name required, PT scale picker, vertical grids
 │
-└── output/                        ← gitignored, local CLI dumps here
+├── output/                        ← gitignored, local CLI dumps here
+│
+├── backend/                       ← NEW — FastAPI app (deploys to Hugging Face Spaces, Docker)
+│   ├── app/
+│   │   ├── main.py                ← FastAPI() instance, CORS via ALLOWED_ORIGIN env var, lifespan cleanup
+│   │   ├── schemas.py             ← Pydantic mirrors of DesignConfig/TypicalSection/CartoucheInfo
+│   │   ├── jobs.py                ← in-memory job store + ThreadPoolExecutor runner, 30-min TTL sweep
+│   │   └── routers/
+│   │       ├── designs.py         ← POST /designs, GET /designs/{id}, GET /designs/{id}/files/{kind}
+│   │       ├── preview.py         ← GET /designs/{id}/preview (plan/profile/Bruckner JSON for the SPA)
+│   │       └── health.py          ← GET /health (used by the keep-alive workflow)
+│   ├── Dockerfile                 ← HF Spaces Docker SDK convention (port 7860); build context = repo root
+│   ├── requirements.txt           ← fastapi/uvicorn/pydantic + engine deps, pinned; no streamlit
+│   └── tests/                     ← pytest + httpx, reuses tests/conftest.py's fixtures
+│
+└── frontends/
+    ├── streamlit/                 ← MOVED from repo root (git mv), behavior unchanged
+    │   ├── app.py                 ← sys.path fixed up to resolve the repo root + docs/ path
+    │   └── .streamlit/
+    │       └── config.toml        ← maxUploadSize = 20 MB, light theme
+    │
+    └── react/                     ← NEW — Vite + React + TypeScript + Tailwind (deploys to Cloudflare Pages)
+        ├── src/                    ← DesignForm, JobStatusPanel, PreviewPanel, from-scratch SVG chart
+        ├── package.json
+        ├── wrangler.toml           ← Cloudflare Pages config (optional CLI-deploy path)
+        └── .env.example            ← VITE_API_BASE_URL placeholder (build-time only, see § 15)
 ```
 
 ---
@@ -642,6 +674,7 @@ Two PDFs, both **fully vector**, rendered directly from `RoadDesign` data via ma
 | post | Issue 3 (PDF DXF-fidelity via direct matplotlib) | ✅ |
 | post | Configurable PDF scales (4 knobs, two per PDF) + professional cover | ✅ |
 | post | PT defaults H 1:100 / V 1:25 on A4 with auto-cap to body | ✅ |
+| post | Repo restructure into `backend/` + `frontends/{streamlit,react}/`; `build_design(return_design=...)`; FastAPI backend + React SPA (§ 15) | ✅ |
 
 **Open for V 1.x:** clothoïdes, calcul dévers, vérification SSD, import LandXML, multi-tracé pour études comparatives.
 
@@ -652,3 +685,165 @@ Two PDFs, both **fully vector**, rendered directly from `RoadDesign` data via ma
 **`Road-Designer V 1.0`** — first integrated release.
 
 Predecessor: a flat script that produced a single DXF with plan + profile + 6-row table + curvature diagram. Everything else (cubatures, Bruckner, profils en travers, paperspace layouts, PDFs, Streamlit UI, tests, professional cover, company header) is V 1.0.
+
+---
+
+## 15. Deployment architecture — three surfaces
+
+Road-Designer ships as **three independent deployables that share one engine**
+(`road_designer/`). None of them depends on another at runtime — each can be deployed,
+redeployed, or taken down without affecting the others:
+
+| Surface | Code | Hosting | URL |
+|---|---|---|---|
+| Streamlit app | `frontends/streamlit/app.py` | Streamlit Community Cloud | TODO(user): fill in after first real deploy |
+| React SPA | `frontends/react/` | Cloudflare Pages (static build) | TODO(user): fill in after first real deploy |
+| FastAPI service | `backend/` | Hugging Face Spaces (Docker SDK, CPU-basic) | TODO(user): fill in after first real deploy |
+
+```
+                     ┌─────────────────────────┐
+                     │   road_designer/         │   the engine — one copy, shared
+                     │   (unchanged, see §§3-9) │   by import, never duplicated
+                     └────────────┬─────────────┘
+                                  │
+                 ┌────────────────┼────────────────┐
+                 │                                 │
+                 ▼                                 ▼
+   ┌───────────────────────────┐      ┌──────────────────────────────┐
+   │ frontends/streamlit/app.py │      │  backend/app/  (FastAPI)      │
+   │ Streamlit Community Cloud  │      │  Hugging Face Spaces (Docker) │
+   │ — unchanged product,       │      │  POST /designs, GET .../{id}, │
+   │   own URL, own users       │      │  GET .../files/{kind},        │
+   └───────────────────────────┘      │  GET .../preview, GET /health │
+                                       └──────────────┬────────────────┘
+                                                       │ fetch (CORS)
+                                                       ▼
+                                       ┌──────────────────────────────┐
+                                       │  frontends/react/ (Vite SPA)  │
+                                       │  Cloudflare Pages (static)     │
+                                       └──────────────────────────────┘
+```
+
+**Why two frontends for one engine:** the Streamlit app is the existing, working product —
+it keeps its URL and its users untouched. The React + FastAPI pair is a second, more
+"professional-looking" product (custom UI, SVG previews, async job polling) built for
+a different deployment story (static SPA + serverless-ish API) without touching the first.
+
+### The one engine change
+
+`road_designer/road_design.py`'s `build_design()` gained a single additive kwarg:
+`return_design: bool = False`. When `True`, the returned dict also carries `"design"` — the
+constructed `RoadDesign` instance — so `backend/app/routers/preview.py` can read plan/profile/
+Bruckner data via the engine's existing public getters (`get_plan_axis`, `get_profile_data`,
+etc.) without re-deriving them or adding new engine computation. Default behavior and the
+existing positional/keyword order for the CLI and Streamlit callers is unchanged. This is the
+**only** change under `road_designer/` — every other constraint in this file (no module-level
+constants, `DesignConfig` as the sole configuration contract, French on-drawing labels, PK as
+the independent variable, etc.) still applies untouched to any future engine work.
+
+### backend/ — FastAPI service
+
+- **No persistence beyond the process.** `backend/app/jobs.py` is an in-memory dict keyed by
+  job id, run through a `ThreadPoolExecutor` (no Celery/Redis/external broker — CPU-basic HF
+  Spaces has no room for one). A background sweep evicts jobs after a 30-minute TTL. This means
+  **a Space restart drops all in-flight and completed jobs** — acceptable for a synchronous
+  design-generation tool where the client is expected to download its files promptly, but worth
+  remembering if this ever needs to survive restarts.
+- **Request lifecycle:** `POST /designs` (multipart: axe file + either a terrain CSV or
+  synth-terrain params + the `DesignConfigIn`/`CartoucheInfoIn` JSON) returns `202` + a job id
+  immediately; the actual `build_design()` call runs in a worker thread. `GET /designs/{id}`
+  reports `queued|running|done|error` plus warnings once done. `GET /designs/{id}/files/{kind}`
+  streams one of `dxf|xlsx|pdf_plan|pdf_pt`. `GET /designs/{id}/preview` returns the JSON the
+  React SVG charts consume (built via `return_design=True`).
+- **CORS** is controlled by the `ALLOWED_ORIGIN` env var (defaults to `"*"` — fine for local dev,
+  **must** be tightened to the real Cloudflare Pages origin before/at first production deploy).
+- **Company-name validation is not a new rule** — `CartoucheInfoIn.company_name` in
+  `backend/app/schemas.py` mirrors the same non-empty check `build_design()` already enforces; it
+  just surfaces earlier, as an HTTP 422, instead of a 500 from inside the engine.
+- **Docker image**: `backend/Dockerfile` builds from the **repo root** as build context (so it can
+  `COPY road_designer/` and `COPY samples/` alongside `backend/` itself) — on Hugging Face Spaces,
+  point the Space's Dockerfile path at `backend/Dockerfile` and leave the build context as the
+  default repo root. Listens on port 7860 (HF Spaces' Docker SDK convention), runs as a non-root
+  `appuser`, sets `MPLCONFIGDIR=/tmp/matplotlib` (matplotlib needs a writable config dir and the
+  container filesystem is otherwise read-only-ish on Spaces). Verified end-to-end with a local
+  `docker build -f backend/Dockerfile -t road-designer-api .` + `docker run -p 18000:7860 ...`:
+  `/health`, a real `POST /designs` against `samples/`, polling to `done`, all 4
+  `/files/{kind}` downloads, and `/preview` all returned correctly from inside the built image.
+- **`backend/__init__.py` is required**, not boilerplate: without it, pytest resolves
+  `backend/tests/` as the top-level `tests` package (since `backend/` itself has no
+  `__init__.py` to stop pytest's package-root walk), which collides with the repo-root
+  `tests/` package that `backend/tests/conftest.py` imports fixtures from — a circular-import
+  `ImportError` at collection time. Keep this file even though it's empty.
+- **`backend/tests/` is verified green** (`pytest backend/tests/ -q` inside the built Docker
+  image, with the repo-root `tests/` mounted in for its shared fixtures — see § "Local dev
+  quick reference" below for the mount syntax on Windows/Docker Desktop): 7 passed. This run
+  caught and fixed a real bug: `routers/designs.py`'s 422 handler forwarded pydantic's raw
+  `ValidationError.errors()` list straight into `HTTPException(detail=...)`; for the
+  `company_name` field validator (a `ValueError`-raising `@field_validator`), pydantic v2
+  embeds the *original exception object* under each error's `ctx["error"]`, which
+  `JSONResponse`'s plain `json.dumps` can't serialize — the missing-`company_name` request
+  crashed with a 500 instead of returning the intended 422. Fixed by projecting each error down
+  to its plain-data fields (`type`/`loc`/`msg`) before raising. Watch for this same pattern
+  (`exc.errors()` forwarded verbatim) in any future custom validator added to `schemas.py`.
+- **Keep-alive**: `.github/workflows/keep-alive-hf-space.yml` cron-pings the Space every 12 minutes
+  via the `HF_SPACE_HEALTH_URL` repo secret, so the free-tier Space doesn't fully cold-sleep between
+  uses. No-ops gracefully (doesn't fail the workflow) if the secret isn't set yet.
+
+### frontends/react/ — Vite + React + TypeScript + Tailwind
+
+- Hand-written UI primitives in a shadcn-like style (Button, Field, Select, Card, Section) —
+  no shadcn CLI run, so the app has zero extra network dependency at build time. `npx shadcn@latest
+  add <component>` can swap any of these in later if desired; see `frontends/react/README.md`.
+- `src/lib/api.ts` is the only place that knows the backend's URL — it reads
+  `VITE_API_BASE_URL`, a **Vite build-time** env var (baked into the JS bundle at `npm run build`,
+  not read at runtime). On Cloudflare Pages this must be set in the dashboard under
+  **Settings → Environment variables** (Production and Preview), not in `wrangler.toml`.
+- `src/hooks/useDesignJob.ts` polls `GET /designs/{id}` every 2 s until `done`/`error` — mirrors
+  the backend's own job-lifecycle contract, no websockets.
+- The plan/profile/Bruckner charts (`src/components/chart/InteractiveLineChart.tsx`) are a
+  from-scratch SVG component (wheel-zoom, drag-pan, nearest-point hover) — no charting library
+  dependency, kept deliberately small for a static-hosting bundle-size budget.
+- Deploys as a static build (`npm run build` → `dist/`) to Cloudflare Pages; `wrangler.toml` exists
+  for CLI-based deploys as an alternative to the dashboard's Git-integration path.
+
+### Local dev quick reference
+
+```bash
+# FastAPI backend (repo root)
+pip install -r backend/requirements.txt
+uvicorn backend.app.main:app --reload
+# → http://localhost:8000, CORS defaults to "*" for local dev
+
+# React frontend (frontends/react/)
+cp .env.example .env.local        # VITE_API_BASE_URL=http://localhost:8000
+npm install
+npm run dev
+
+# Streamlit app (unchanged) — from repo root
+streamlit run frontends/streamlit/app.py
+
+# backend/tests/ inside the built Docker image, without installing anything on the host
+# (the image already has every pinned dependency; mount the repo-root tests/ dir in for
+# backend/tests/conftest.py's shared axe_path/terrain_path fixtures). On Windows + Docker
+# Desktop, the //c/... double-slash form avoids Git-Bash path mangling of -v:
+docker build -f backend/Dockerfile -t road-designer-api .
+docker run --rm -v "//c/path/to/Road_designe/tests:/app/tests:ro" \
+    --entrypoint pytest road-designer-api backend/tests/ -q
+```
+
+### Env vars / secrets to fill in after first real deploy
+
+| Where | Name | Set to |
+|---|---|---|
+| Hugging Face Space | `ALLOWED_ORIGIN` | The deployed Cloudflare Pages origin (e.g. `https://road-designer.pages.dev`) |
+| Cloudflare Pages dashboard | `VITE_API_BASE_URL` | The deployed HF Space URL (e.g. `https://<user>-<space>.hf.space`) |
+| GitHub repo secret | `HF_SPACE_HEALTH_URL` | `https://<user>-<space>.hf.space/health` |
+| Streamlit Cloud dashboard | "Main file path" setting | `frontends/streamlit/app.py` (must be updated manually post-move — cannot be set from the repo) |
+
+**[`DEPLOYMENT.md`](DEPLOYMENT.md)** (repo root) is the full step-by-step, beginner-oriented
+walkthrough for all of the above — written for someone doing this deploy for the first time,
+including exactly why the Hugging Face Space needs a separately-assembled git push rather than
+a straight sync of this monorepo (Docker Spaces require the `Dockerfile` at the Space repo's
+own root, and ours lives at `backend/Dockerfile` with `road_designer/`/`samples/` as siblings —
+see that doc's § 3.3 for the reasoning). Point the user there for the actual deploy; keep this
+section as the technical reference for what each piece does.

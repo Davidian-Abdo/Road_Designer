@@ -434,10 +434,18 @@ def build_design(
     axe_path: Union[str, Path],
     terrain_path: Union[str, Path],
     out_dir: Union[str, Path],
+    return_design: bool = False,
 ) -> dict:
     """Build a full design and write DXF + XLSX into ``out_dir``.
 
-    Returns a dict with paths to the generated artifacts.
+    Returns a dict with paths to the generated artifacts. If
+    ``return_design`` is True, the dict also carries the constructed
+    ``RoadDesign`` instance under the ``"design"`` key — additive, opt-in,
+    used by ``backend/app/routers/preview.py`` to build a live-preview JSON
+    payload from the existing public getters (``get_plan_axis``,
+    ``get_plan_edges``, ``get_profile_data``, ...) without duplicating any
+    engine computation. Default behaviour/signature order for existing
+    callers (CLI, Streamlit) is unchanged.
     """
     # Mandatory: company_name must be set (used as PDF page header)
     if not cfg.cartouche.company_name or not cfg.cartouche.company_name.strip():
@@ -477,10 +485,13 @@ def build_design(
     write_plan_pdf(dxf_path, pdf_plan_path, design)
     write_pt_pdf(dxf_path, pdf_pt_path, design)
 
-    return {
+    result = {
         "dxf": dxf_path,
         "xlsx": xlsx_path,
         "pdf_plan": pdf_plan_path,
         "pdf_pt": pdf_pt_path,
         "warnings": design.tangent_warnings,
     }
+    if return_design:
+        result["design"] = design
+    return result

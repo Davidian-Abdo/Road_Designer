@@ -1,0 +1,13 @@
+# Cloudflare Pages config for `wrangler pages deploy`.
+# See ./README.md for the full deploy walkthrough (dashboard Git-integration
+# path, which most users will want instead of the wrangler CLI).
+
+name = "road-designer-react"
+pages_build_output_dir = "dist"
+compatibility_date = "2024-11-01"
+
+# NOTE: VITE_API_BASE_URL is a Vite BUILD-TIME env var (baked into the JS
+# bundle at `npm run build`). Setting it here under [vars] does NOT affect
+# the Vite build — set it instead in the Cloudflare Pages dashboard under
+# Settings > Environment variables (Production and Preview), or export it
+# in your shell before running `wrangler pages deploy` locally.

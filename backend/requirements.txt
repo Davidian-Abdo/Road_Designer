@@ -1,0 +1,23 @@
+# Road Designer V 1.0 — FastAPI backend requirements.
+#
+# Target runtime: Python 3.12, Hugging Face Spaces Docker SDK (CPU-basic).
+# Mirrors the engine pins in the repo-root requirements.txt, minus streamlit
+# (the Streamlit frontend is a separate deployable, see
+# frontends/streamlit/app.py) plus the API layer.
+
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30,<1.0
+python-multipart>=0.0.9,<1.0
+pydantic>=2.7,<3.0
+
+# road_designer engine deps (must match repo-root requirements.txt)
+ezdxf>=1.3.4,<2.0
+numpy>=1.26,<3.0
+scipy>=1.13,<2.0
+pandas>=2.2,<3.0
+openpyxl>=3.1,<4.0
+matplotlib>=3.9,<4.0
+
+# Test-only
+pytest>=8.0
+httpx>=0.27,<1.0

@@ -6,14 +6,29 @@ Entry point that any user of the deployed app sees. Three principles:
   2. **No hard-coded paths**. Samples are resolved via samples_api.
   3. **Every DesignConfig knob exposed**. Sidebar drives the dataclass.
 
-Run locally with:  ``streamlit run app.py``
+Run locally with:  ``streamlit run frontends/streamlit/app.py`` (from the repo
+root) or ``streamlit run app.py`` (from this directory).
+
+This file lives under ``frontends/streamlit/`` alongside the React+FastAPI
+frontend under ``frontends/react/`` — both are separate products sharing the
+same ``road_designer`` engine (see CLAUDE.md § "Three-surface architecture").
+Nothing below changed when this file moved except the two path fixups
+immediately below (repo-root import path, docs/ lookup).
 """
 from __future__ import annotations
 
 import io
+import sys
 import tempfile
 from dataclasses import replace
 from pathlib import Path
+
+# This file lives at <repo_root>/frontends/streamlit/app.py. Streamlit adds
+# this file's own directory to sys.path, not the repo root, so ``road_designer``
+# would not be importable without this. Mirrors tests/conftest.py's fixup.
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 import matplotlib
 matplotlib.use("Agg")
@@ -656,7 +671,7 @@ tab_run, tab_table, tab_preview, tab_contact, tab_help = st.tabs(
 )
 
 with tab_help:
-    p = Path(__file__).parent / "docs" / "INPUT_FORMAT.md"
+    p = _REPO_ROOT / "docs" / "INPUT_FORMAT.md"
     if p.exists():
         st.markdown(p.read_text(encoding="utf-8"))
     else:

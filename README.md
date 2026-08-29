@@ -47,10 +47,29 @@ pip install -r requirements.txt
 ### 2. Lancement de l'interface Streamlit (recommandé)
 
 ```bash
-streamlit run app.py
+streamlit run frontends/streamlit/app.py
 ```
 
 Puis ouvrir `http://localhost:8501`. Charger l'exemple intégré ou ses propres fichiers, ajuster les paramètres dans la barre latérale, cliquer sur **Générer**, et télécharger DXF + XLSX + 2 PDFs.
+
+### 2bis. Interface React + API FastAPI (alternative)
+
+Un second frontend, plus « produit » (formulaire complet, aperçus SVG interactifs, suivi de job
+asynchrone), vit dans `frontends/react/` et parle à un service FastAPI dans `backend/` — un
+produit séparé du Streamlit ci-dessus, partageant le même moteur `road_designer/`. Voir
+`backend/README.md` et `frontends/react/README.md` pour le démarrage local, et
+[`DEPLOYMENT.md`](DEPLOYMENT.md) pour le guide de déploiement pas-à-pas (Hugging Face Spaces +
+Cloudflare Pages + mise à jour Streamlit Cloud), et `CLAUDE.md` § 15 pour l'architecture
+complète.
+
+```bash
+# terminal 1 — API
+pip install -r backend/requirements.txt
+uvicorn backend.app.main:app --reload
+
+# terminal 2 — SPA
+cd frontends/react && npm install && npm run dev
+```
 
 ### 3. Mode ligne de commande
 
@@ -117,8 +136,12 @@ Pour tester l'application sans MNT réel.
 
 ## Architecture (post-refactor V 1.0)
 
+Trois surfaces de déploiement indépendantes partagent un seul moteur `road_designer/` :
+Streamlit Community Cloud, une SPA React sur Cloudflare Pages adossée à une API FastAPI sur
+Hugging Face Spaces, et la CLI locale. Aucune ne dépend d'une autre à l'exécution.
+
 ```
-road_designer/
+road_designer/          ← moteur — inchangé, partagé par les 3 surfaces
 ├── config.py          ← @dataclass DesignConfig + REFT_CAT_1/2/3
 ├── mnt_engine.py      ← TerrainModel (TIN + KDTree fallback)
 ├── axe_parser.py      ← LineSegment, ArcSegment, AlignmentParser
@@ -134,13 +157,20 @@ road_designer/
 
 samples/               ← fichiers d'exemple bundle
 docs/INPUT_FORMAT.md   ← grammaire des entrées
-tests/                 ← suite pytest (39 tests)
-app.py                 ← interface Streamlit
+tests/                 ← suite pytest moteur (41 tests)
 main.py                ← CLI
-CLAUDE.md              ← référence pour les sessions de maintenance
+CLAUDE.md / AGENTS.md  ← référence pour les sessions de maintenance
+
+backend/                ← API FastAPI (déploie sur Hugging Face Spaces, Docker)
+frontends/
+├── streamlit/          ← app.py Streamlit (déploie sur Streamlit Community Cloud)
+└── react/               ← SPA Vite/React/TypeScript (déploie sur Cloudflare Pages)
 ```
 
-Voir [`CLAUDE.md`](CLAUDE.md) pour la description détaillée du pipeline, le vocabulaire civil engineering, la convention des layers DXF, et le contrat PDF.
+Voir [`CLAUDE.md`](CLAUDE.md) pour la description détaillée du pipeline, le vocabulaire civil
+engineering, la convention des layers DXF, le contrat PDF, et § 15 pour l'architecture de
+déploiement des trois surfaces. Voir aussi `backend/README.md` et `frontends/react/README.md`
+pour le démarrage local et le déploiement de la paire React + FastAPI.
 
 ---
 
@@ -162,10 +192,11 @@ L'étendue latérale des profils en travers vaut par défaut **1.5 × largeur de
 ## Tests
 
 ```bash
-pytest tests/ -v
+pytest tests/ -v            # moteur (41 tests)
+pytest backend/tests/ -v    # API FastAPI (7 tests) — voir backend/README.md pour l'installation
 ```
 
-39 tests pinnent : grammaire de l'axe, continuité des paraboles, signe sommet/cuvette, plancher REFT, partage `h = 0` dans la cubature, identités de Bruckner, géométrie 2D, calage profil/plan, sélection des échelles PT, validation `company_name`, et 5 tests de mise en page (profil sous le plan, monotonie PK, échelle V cohérente).
+41 tests moteur pinnent : grammaire de l'axe, continuité des paraboles, signe sommet/cuvette, plancher REFT, partage `h = 0` dans la cubature, identités de Bruckner, géométrie 2D, calage profil/plan, sélection des échelles PT, validation `company_name`, et les tests de mise en page (profil sous le plan, monotonie PK, échelle V cohérente). Les 7 tests `backend/` couvrent le cycle de vie complet d'un job HTTP (soumission → polling → 4 téléchargements → aperçu).
 
 ---
 

@@ -1,0 +1,32 @@
+name: Keep-alive — HF Space (FastAPI backend)
+
+# Hugging Face Spaces free tier (CPU-basic) can put idle Spaces to sleep.
+# This workflow pings the deployed backend's /health endpoint every ~12
+# minutes to keep it warm. It does NOT deploy anything — HF Spaces builds
+# straight from the repo per its own Space settings (Dockerfile path
+# backend/Dockerfile).
+#
+# Setup required after your first real deploy:
+#   Repo Settings -> Secrets and variables -> Actions -> New repository secret
+#     Name:  HF_SPACE_HEALTH_URL
+#     Value: https://<your-space>.hf.space/health   (placeholder — do not commit)
+
+on:
+  schedule:
+    - cron: "*/12 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Curl the HF Space health endpoint
+        run: |
+          if [ -z "${{ secrets.HF_SPACE_HEALTH_URL }}" ]; then
+            echo "HF_SPACE_HEALTH_URL secret is not set yet — skipping ping." \
+                 "Set it in repo Settings > Secrets and variables > Actions" \
+                 "once the backend is deployed to Hugging Face Spaces."
+            exit 0
+          fi
+          curl --fail --silent --show-error --max-time 20 \
+               "${{ secrets.HF_SPACE_HEALTH_URL }}"
