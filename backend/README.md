@@ -51,40 +51,52 @@ enforces — it just surfaces as an HTTP `422` instead of a `500` raised from in
 ## Job store — what "in-memory" means here
 
 `backend/app/jobs.py` keeps jobs in a plain process-local dict, run through a
-`ThreadPoolExecutor`. There is no external broker (no Celery, no Redis) — CPU-basic Hugging
-Face Spaces has no room for one, and a synchronous design-generation tool doesn't need job
-durability across restarts. A background sweep evicts jobs after a 30-minute TTL. **A Space
-restart or redeploy drops every in-flight and completed job** — by design, not as a bug. If
-this backend is ever repurposed for something that needs jobs to survive restarts, that's a
+`ThreadPoolExecutor`. There is no external broker (no Celery, no Redis) — a small free-tier
+container host has no room for one, and a synchronous design-generation tool doesn't need job
+durability across restarts. A background sweep evicts jobs after a 30-minute TTL. **A restart
+or redeploy drops every in-flight and completed job** — by design, not as a bug. If this
+backend is ever repurposed for something that needs jobs to survive restarts, that's a
 different architecture (external queue + storage), not a tweak to this one.
+
+Because the build runs in a background thread *after* the HTTP response is sent, the container
+must keep getting CPU while idle-of-requests. On Cloud Run that means deploying with
+`--no-cpu-throttling`; other hosts allocate CPU for the instance lifetime by default.
 
 ## Docker
 
 ```bash
-# from the repo root — build context MUST be the repo root, not backend/,
-# so road_designer/ and samples/ can be copied into the image alongside backend/
-docker build -f backend/Dockerfile -t road-designer-api .
-docker run --rm -p 7860:7860 road-designer-api
-# → http://localhost:7860/health
+# from the repo root — the Dockerfile lives at the repo root and its build
+# context IS the repo root, so road_designer/ and samples/ are copied in
+# alongside backend/.
+docker build -t road-designer-api .
+docker run --rm -p 8000:7860 road-designer-api
+# → http://localhost:8000/health
 ```
 
-## Deploying to Hugging Face Spaces
+The container listens on `$PORT` if set, else `7860` (so Cloud Run / Render / Koyeb / Fly and
+Hugging Face Spaces all work with no change).
 
-1. Create a new Space, SDK = **Docker**.
-2. Point the Space's Dockerfile path at `backend/Dockerfile`, leave the build context as the
-   default repo root.
-3. HF Spaces' Docker SDK expects the container to listen on port **7860** (already set in the
-   Dockerfile's `EXPOSE`/`CMD`) — no extra config needed unless you override `app_port` in the
-   Space's README front-matter.
-4. After the first successful deploy, set the env vars below.
+## Deploying
+
+The full step-by-step is in the repo-root [`DEPLOYMENT.md`](../DEPLOYMENT.md). In short:
+
+- **Primary: Google Cloud Run** (Part A) — `gcloud run deploy road-designer-api --source .
+  --region <r> --allow-unauthenticated --memory 1Gi --no-cpu-throttling` from the repo root.
+  Free monthly compute allotment covers light/moderate use; scales to zero.
+- **Alternative: Hugging Face Spaces** (Part G) — now needs a **PRO** plan for CPU hardware.
+  SDK = Docker, Dockerfile at the Space repo root, port 7860 auto-selected.
+- **No-card alternatives:** Render / Koyeb free web services (512 MB, ~50 s cold start).
+
+The Dockerfile is host-neutral, so switching hosts later is: build the same image there,
+repoint `VITE_API_BASE_URL` on Cloudflare Pages, re-set `ALLOWED_ORIGIN`.
 
 ## Env vars / secrets to fill in after first real deploy
 
 | Where | Name | Set to |
 |---|---|---|
-| Hugging Face Space (Settings → Variables and secrets) | `ALLOWED_ORIGIN` | The deployed Cloudflare Pages origin, e.g. `https://road-designer.pages.dev` |
-| Cloudflare Pages dashboard | `VITE_API_BASE_URL` | This Space's public URL, e.g. `https://<user>-<space>.hf.space` (see `frontends/react/README.md`) |
-| GitHub repo secret | `HF_SPACE_HEALTH_URL` | `https://<user>-<space>.hf.space/health` — used by `.github/workflows/keep-alive-hf-space.yml` to ping the Space every 12 minutes so the free tier doesn't fully cold-sleep |
+| Backend host (Cloud Run: `--set-env-vars`; HF: Space Variables) | `ALLOWED_ORIGIN` | The deployed Cloudflare Pages origin, e.g. `https://road-designer.pages.dev` |
+| Cloudflare Pages dashboard | `VITE_API_BASE_URL` | The backend's public URL, no trailing slash (see `frontends/react/README.md`) |
+| GitHub repo secret (optional) | `BACKEND_HEALTH_URL` | `https://<backend-host>/health` — used by `.github/workflows/keep-alive-backend.yml`. Set it only for hosts where staying warm is free (HF / Render / Koyeb); **not** for Cloud Run with `--no-cpu-throttling`. |
 
 ## Directory layout
 
@@ -98,7 +110,6 @@ backend/
 │       ├── designs.py    ← POST /designs, GET /designs/{id}, GET /designs/{id}/files/{kind}
 │       ├── preview.py    ← GET /designs/{id}/preview
 │       └── health.py     ← GET /health
-├── Dockerfile
 ├── requirements.txt
 └── tests/
     ├── conftest.py

@@ -1,0 +1,35 @@
+# What `gcloud run deploy --source .` uploads to Cloud Build.
+# Mirrors .dockerignore. Without this file gcloud derives one from .gitignore,
+# which does NOT exclude node_modules / frontends / docs — so keep this explicit.
+
+.git
+.gitignore
+.github/
+.devcontainer/
+.pytest_cache/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+
+Road_venv/
+.venv/
+venv/
+
+frontends/
+docs/
+
+output/
+*.dxf
+*.xlsx
+*.pdf
+
+**/node_modules/
+
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# sample data is needed inside the image
+!samples/

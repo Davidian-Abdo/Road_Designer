@@ -5,9 +5,10 @@
 Run locally with:  ``uvicorn backend.app.main:app --reload`` (from the repo
 root, so ``road_designer`` is importable).
 
-Deployment target: Hugging Face Spaces (Docker SDK), see backend/Dockerfile.
-CORS origin is read from the ``ALLOWED_ORIGIN`` env var — set it to the
-deployed Cloudflare Pages URL after the first real deploy (placeholder
+Deployment target: Google Cloud Run (container), built from the repo-root
+``Dockerfile``; Hugging Face Spaces is the documented alternative. See
+DEPLOYMENT.md. CORS origin is read from the ``ALLOWED_ORIGIN`` env var — set it
+to the deployed Cloudflare Pages URL after the first real deploy (placeholder
 default below is permissive for local dev only).
 """
 from __future__ import annotations
@@ -23,9 +24,11 @@ from . import jobs
 from .routers import designs, health, preview
 
 # TODO(user): after your first real Cloudflare Pages deploy, set this env var
-# on the HF Space to the exact deployed origin, e.g.
-# "https://road-designer.pages.dev". Comma-separate multiple origins.
-# Defaults to "*" (dev-only — do not ship to production HF Space unpinned).
+# on the backend service (Cloud Run: `gcloud run services update ... \
+# --update-env-vars ALLOWED_ORIGIN=...`; HF Space: Settings > Variables) to the
+# exact deployed origin, e.g. "https://road-designer.pages.dev". Comma-separate
+# multiple origins. Defaults to "*" (dev-only — do not ship to production
+# unpinned).
 ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
 _origins = [o.strip() for o in ALLOWED_ORIGIN.split(",")] if ALLOWED_ORIGIN != "*" else ["*"]
 

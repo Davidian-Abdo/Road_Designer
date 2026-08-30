@@ -34,8 +34,9 @@ npm run preview    # serve the production build locally, for a final check befor
 3. **Root directory** (if deploying from this monorepo via the dashboard's Git integration):
    `frontends/react`
 4. **Environment variable** (Settings → Environment variables, both Production and Preview):
-   `VITE_API_BASE_URL` = the deployed FastAPI backend's URL (e.g.
-   `https://<user>-<space>.hf.space`, no trailing slash).
+   `VITE_API_BASE_URL` = the deployed FastAPI backend's URL, no trailing slash (e.g. a Google
+   Cloud Run URL `https://road-designer-api-xxxxxxxxxx-ew.a.run.app`, or a Hugging Face Space
+   URL `https://<user>-<space>.hf.space`). See `DEPLOYMENT.md` Part A.
 
    **This is a Vite *build-time* variable** — it gets baked into the JS bundle when
    `npm run build` runs. Setting it in `wrangler.toml`'s `[vars]` section does **not** affect

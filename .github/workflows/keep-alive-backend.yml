@@ -1,0 +1,39 @@
+name: Keep-alive — FastAPI backend
+
+# Pings the deployed backend's /health endpoint every ~12 minutes to reduce
+# cold starts on hosts that sleep idle services. It does NOT deploy anything.
+#
+# Setup: repo Settings -> Secrets and variables -> Actions -> New repository secret
+#   Name:  BACKEND_HEALTH_URL
+#   Value: https://<your-backend-host>/health
+#
+# WHICH HOSTS THIS HELPS:
+#   - Hugging Face Spaces (PRO) / Render / Koyeb: yes — they sleep when idle and
+#     a cheap ping keeps them warm.
+#   - Google Cloud Run deployed with `--no-cpu-throttling` (this project's
+#     recommended setting): DO NOT set the secret. CPU-always-allocated means a
+#     kept-warm instance is billed continuously and would blow the free monthly
+#     allotment. Leave it to scale to zero and accept the first-request cold
+#     start instead.
+# If the secret is unset the job no-ops (it will not fail your checks).
+
+on:
+  schedule:
+    - cron: "*/12 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Curl the backend health endpoint
+        run: |
+          if [ -z "${{ secrets.BACKEND_HEALTH_URL }}" ]; then
+            echo "BACKEND_HEALTH_URL secret is not set — skipping ping." \
+                 "Set it only for a host where keeping the service warm is free" \
+                 "(HF Spaces / Render / Koyeb), not for Cloud Run with" \
+                 "--no-cpu-throttling. See the comment at the top of this file."
+            exit 0
+          fi
+          curl --fail --silent --show-error --max-time 20 \
+               "${{ secrets.BACKEND_HEALTH_URL }}"

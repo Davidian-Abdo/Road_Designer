@@ -59,7 +59,7 @@ Then open `http://localhost:8501`. Load the bundled example or your own files, a
 
 ### 2b. React UI + FastAPI API (alternative)
 
-A second, more "product"-style frontend (full form, interactive SVG previews, async job polling) lives in `frontends/react/` and talks to a FastAPI service in `backend/` — a separate product from the Streamlit app above, sharing the same `road_designer/` engine. See `backend/README.md` and `frontends/react/README.md` for local dev, [`DEPLOYMENT.md`](DEPLOYMENT.md) for the step-by-step deploy guide (Hugging Face Spaces + Cloudflare Pages + Streamlit Cloud update), and `CLAUDE.md` § 15 for the full architecture.
+A second, more "product"-style frontend (full form, interactive SVG previews, async job polling) lives in `frontends/react/` and talks to a FastAPI service in `backend/` — a separate product from the Streamlit app above, sharing the same `road_designer/` engine. See `backend/README.md` and `frontends/react/README.md` for local dev, [`DEPLOYMENT.md`](DEPLOYMENT.md) for the step-by-step deploy guide (Google Cloud Run + Cloudflare Pages + Streamlit Cloud update; Hugging Face Spaces documented as an alternative backend host), and `CLAUDE.md` § 15 for the full architecture.
 
 ```bash
 # terminal 1 — API
@@ -135,7 +135,7 @@ For trying the tool without a real MNT.
 
 ## Architecture (post-refactor V 1.0)
 
-Three independent deployment surfaces share one `road_designer/` engine: Streamlit Community Cloud, a React SPA on Cloudflare Pages backed by a FastAPI service on Hugging Face Spaces, and the local CLI. None depends on another at runtime.
+Three independent deployment surfaces share one `road_designer/` engine: Streamlit Community Cloud, a React SPA on Cloudflare Pages backed by a FastAPI service on Google Cloud Run, and the local CLI. None depends on another at runtime.
 
 ```
 road_designer/          ← engine — unchanged, shared by all 3 surfaces
@@ -158,7 +158,7 @@ tests/                   ← engine pytest suite (41 tests)
 main.py                  ← CLI
 CLAUDE.md / AGENTS.md    ← reference for maintenance sessions
 
-backend/                 ← FastAPI API (deploys to Hugging Face Spaces, Docker)
+backend/                 ← FastAPI API (deploys to Google Cloud Run, Docker)
 frontends/
 ├── streamlit/           ← app.py Streamlit (deploys to Streamlit Community Cloud)
 └── react/               ← Vite/React/TypeScript SPA (deploys to Cloudflare Pages)

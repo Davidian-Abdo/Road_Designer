@@ -1,0 +1,38 @@
+# Keep the build context (and Cloud Build upload) small. The image only needs
+# road_designer/, samples/, backend/, and the Notice Files — see Dockerfile.
+
+.git
+.github
+.devcontainer
+.pytest_cache
+**/__pycache__
+*.py[cod]
+*.egg-info
+
+# virtualenvs
+Road_venv/
+.venv/
+venv/
+
+# other deploy surfaces — not part of the backend image
+frontends/
+docs/
+
+# local outputs / generated artifacts
+output/
+*.dxf
+*.xlsx
+*.pdf
+
+# node (in case a local build left it around)
+**/node_modules/
+
+# editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# sample data must stay in the image even though outputs are ignored above
+!samples/

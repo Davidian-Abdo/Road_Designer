@@ -63,9 +63,9 @@ Un second frontend, plus « produit » (formulaire complet, aperçus SVG interac
 asynchrone), vit dans `frontends/react/` et parle à un service FastAPI dans `backend/` — un
 produit séparé du Streamlit ci-dessus, partageant le même moteur `road_designer/`. Voir
 `backend/README.md` et `frontends/react/README.md` pour le démarrage local, et
-[`DEPLOYMENT.md`](DEPLOYMENT.md) pour le guide de déploiement pas-à-pas (Hugging Face Spaces +
-Cloudflare Pages + mise à jour Streamlit Cloud), et `CLAUDE.md` § 15 pour l'architecture
-complète.
+[`DEPLOYMENT.md`](DEPLOYMENT.md) pour le guide de déploiement pas-à-pas (Google Cloud Run +
+Cloudflare Pages + mise à jour Streamlit Cloud ; Hugging Face Spaces documenté comme hôte
+alternatif pour le backend), et `CLAUDE.md` § 15 pour l'architecture complète.
 
 ```bash
 # terminal 1 — API
@@ -143,7 +143,7 @@ Pour tester l'application sans MNT réel.
 
 Trois surfaces de déploiement indépendantes partagent un seul moteur `road_designer/` :
 Streamlit Community Cloud, une SPA React sur Cloudflare Pages adossée à une API FastAPI sur
-Hugging Face Spaces, et la CLI locale. Aucune ne dépend d'une autre à l'exécution.
+Google Cloud Run, et la CLI locale. Aucune ne dépend d'une autre à l'exécution.
 
 ```
 road_designer/          ← moteur — inchangé, partagé par les 3 surfaces
@@ -166,7 +166,7 @@ tests/                 ← suite pytest moteur (41 tests)
 main.py                ← CLI
 CLAUDE.md / AGENTS.md  ← référence pour les sessions de maintenance
 
-backend/                ← API FastAPI (déploie sur Hugging Face Spaces, Docker)
+backend/                ← API FastAPI (déploie sur Google Cloud Run, Docker)
 frontends/
 ├── streamlit/          ← app.py Streamlit (déploie sur Streamlit Community Cloud)
 └── react/               ← SPA Vite/React/TypeScript (déploie sur Cloudflare Pages)

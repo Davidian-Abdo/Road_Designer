@@ -1,12 +1,25 @@
+<!-- SPDX-FileCopyrightText: 2026 Beamstack <https://beam-stack.com> -->
+<!-- SPDX-License-Identifier: LicenseRef-BCL-1.0 -->
+
 # Deployment Guide
 
 A step-by-step, no-assumed-experience guide to getting all three Road Designer surfaces live:
-the FastAPI backend on Hugging Face Spaces, the React frontend on Cloudflare Pages, and the
-existing Streamlit app back on its feet at its new file path. Written for someone doing this
-for the first time — every click is spelled out.
 
-If you get stuck partway through, that's normal; jump to [Troubleshooting](#troubleshooting)
-near the end, or just ask for help with whatever screen you're stuck on.
+| Surface | Host | Role |
+|---|---|---|
+| **Streamlit app** | Streamlit Community Cloud (free) | Always-on, standalone. The fallback that never needs a backend. |
+| **FastAPI backend** | **Google Cloud Run** (free tier) | The API the React SPA calls. Portable — can be moved to Hugging Face later ([Part G](#12-part-g--switching-the-backend-to-hugging-face-spaces-later)). |
+| **React SPA** | Cloudflare Pages (free) | The "product" frontend. Talks to the backend over HTTPS. |
+
+Written for someone doing this for the first time — every click is spelled out. If you get
+stuck partway through, jump to [Troubleshooting](#10-troubleshooting), or ask for help with
+whatever screen you're on.
+
+> **Why Cloud Run and not Hugging Face?** Hugging Face changed its pricing: Docker Spaces now
+> need a **PRO** plan ($9/mo) for any CPU hardware. Cloud Run's always-free monthly allotment
+> covers light-to-moderate use of this backend at $0. If sustained traffic ever pushes past
+> that allotment, HF PRO's flat $9 becomes the cheaper option — and the Dockerfile is
+> host-neutral, so switching is ~20 minutes (Part G).
 
 ---
 
@@ -14,51 +27,50 @@ near the end, or just ask for help with whatever screen you're stuck on.
 
 1. [The big picture](#1-the-big-picture)
 2. [Before you start](#2-before-you-start)
-3. [Part A — Deploy the backend to Hugging Face Spaces](#3-part-a--deploy-the-backend-to-hugging-face-spaces)
+3. [Part A — Deploy the backend to Google Cloud Run](#3-part-a--deploy-the-backend-to-google-cloud-run)
 4. [Part B — Deploy the frontend to Cloudflare Pages](#4-part-b--deploy-the-frontend-to-cloudflare-pages)
 5. [Part C — Close the loop: lock down CORS](#5-part-c--close-the-loop-lock-down-cors)
 6. [Part D — Fix the Streamlit Cloud app](#6-part-d--fix-the-streamlit-cloud-app)
-7. [Part E — Keep the backend from falling asleep](#7-part-e--keep-the-backend-from-falling-asleep)
+7. [Part E — Cold starts](#7-part-e--cold-starts)
 8. [Part F — Final end-to-end check](#8-part-f--final-end-to-end-check)
 9. [Updating later](#9-updating-later)
 10. [Troubleshooting](#10-troubleshooting)
 11. [What this costs](#11-what-this-costs)
+12. [Part G — Switching the backend to Hugging Face Spaces later](#12-part-g--switching-the-backend-to-hugging-face-spaces-later)
 
 ---
 
 ## 1. The big picture
 
-You're deploying **three separate things**, in this order:
-
 ```
-  Part A                Part B                  Part D
-┌───────────┐         ┌───────────┐         ┌─────────────┐
-│  Backend  │ ◄────── │ Frontend  │         │  Streamlit  │
-│(FastAPI,  │  calls   │  (React,  │         │  (unchanged,│
-│Hugging    │  its API │ Cloudflare│         │ own account,│
-│Face Space)│         │  Pages)   │         │  own URL)   │
-└───────────┘         └───────────┘         └─────────────┘
+  Part A                    Part B                  Part D
+┌─────────────┐           ┌───────────┐         ┌─────────────┐
+│  Backend    │ ◄──────── │ Frontend  │         │  Streamlit  │
+│ (FastAPI,   │  calls    │  (React,  │         │ (standalone,│
+│  Google     │  its API  │ Cloudflare│         │  own account│
+│  Cloud Run) │           │  Pages)   │         │  and URL)   │
+└─────────────┘           └───────────┘         └─────────────┘
 ```
 
-- **Backend first** — it works standalone (you can test it in a browser before the frontend
-  exists), and the frontend needs its URL to be configured.
-- **Frontend second** — needs the backend's URL as a build-time setting.
+- **Backend first** — it works standalone (test it in a browser before the frontend exists),
+  and the frontend needs its URL as a build-time setting.
+- **Frontend second** — needs the backend's URL.
 - **Part C loops back** to the backend once, to lock its CORS setting down to the frontend's
-  real URL (until then it's wide open, which is fine for getting things working first).
-- **Streamlit is independent** of the other two — it's the existing app, just needs its
-  Streamlit Cloud dashboard setting updated to match where its file moved to in this repo.
+  real URL (until then it's wide open, which is fine for getting things working).
+- **Streamlit is independent** of the other two — it needs no backend and no other service. If
+  the Cloud Run backend is ever down, the Streamlit app still does everything.
 
-Each of these can be redone independently later — none of them depend on each other at
-runtime, only the CORS setting and the frontend's build-time API URL link them together.
+Each surface can be redeployed independently later — only the CORS setting and the frontend's
+build-time API URL link the backend and the SPA together.
 
 **One licence thing before you start.** Road Designer is published under the Beamstack
 Community License 1.0 (`LICENSE` at the repo root; plain-language summary in `LICENSING.md`).
 Deploying it publicly is fine and expected, but the licence asks two small things of every
 public deployment, yours included:
 
-1. The `LICENSE`, `NOTICE`, and `THIRD-PARTY-NOTICES.md` files must travel with the code you
-   push to Hugging Face — the assembly step in Part A now copies them, and `backend/Dockerfile`
-   now `COPY`s them into the image.
+1. The `LICENSE`, `NOTICE`, and `THIRD-PARTY-NOTICES.md` files must travel with the code. The
+   repo-root `Dockerfile` already `COPY`s them into the backend image, so Cloud Run is covered
+   automatically; keep them in any fork.
 2. The user-facing surfaces — the React SPA (Part B) and the Streamlit app (Part D) — must show
    a "Powered by Beamstack" credit linked to <https://beam-stack.com>, somewhere a user would
    look for credits (a footer, an About panel, a splash screen). It need not be on every screen.
@@ -68,145 +80,113 @@ public deployment, yours included:
 
 ## 2. Before you start
 
-You'll need three accounts, all free:
+Accounts (all have a free tier):
 
-- [ ] A **GitHub** account, with this repository pushed to it (if it's only local right now,
-      say so and that needs sorting out first — everything below assumes the code is already
-      on GitHub, since both Hugging Face and Cloudflare pull from there).
-- [ ] A **Hugging Face** account — sign up at [huggingface.co](https://huggingface.co/join).
-- [ ] A **Cloudflare** account — sign up at [dash.cloudflare.com/sign-up](https://dash.cloudflare.com/sign-up).
+- [ ] **GitHub** — this repository must already be pushed to it (Cloudflare pulls from there).
+- [ ] **Google Cloud** — sign up at [cloud.google.com](https://cloud.google.com). Cloud Run's
+      free monthly allotment is real, but Google **requires a billing account with a card**
+      before you can deploy anything. You will not be charged at the usage this backend
+      generates; [Part E](#7-part-e--cold-starts) and [§ 11](#11-what-this-costs) explain the
+      numbers, and you can set a $1 budget alert for peace of mind.
+- [ ] **Cloudflare** — sign up at [dash.cloudflare.com/sign-up](https://dash.cloudflare.com/sign-up).
+- [ ] A **Hugging Face** account is **not** needed unless/until you do Part G.
 
-You'll also want **Git installed locally** (you already have it, since this is a git repo) and
-a terminal to run a handful of copy-paste commands.
+Tools:
+
+- **Git** (you have it — this is a git repo).
+- **The `gcloud` CLI** — either install the [Google Cloud CLI](https://cloud.google.com/sdk/docs/install)
+  locally, **or** use [Cloud Shell](https://shell.cloud.google.com) in your browser (gcloud is
+  pre-installed there; you'll `git clone` your repo into it). The steps below work the same in
+  both.
 
 ---
 
-## 3. Part A — Deploy the backend to Hugging Face Spaces
+## 3. Part A — Deploy the backend to Google Cloud Run
 
-### A.1 — Create the Space
+### A.1 — Create a project and enable billing
 
-1. Go to [huggingface.co/new-space](https://huggingface.co/new-space) (log in first).
-2. Fill in the form:
-   - **Owner**: your username.
-   - **Space name**: something like `road-designer-api`.
-   - **License**: choose **Other**. Road Designer is under the Beamstack Community
-     License 1.0, which is not in Hugging Face's licence list; you'll declare it
-     properly in the Space README in step A.4b. (The dropdown doesn't affect how
-     the Space runs, but it shouldn't misreport the licence as MIT/Apache/etc.)
-   - **Select the Space SDK**: choose **Docker**.
-   - **Docker template**: choose the **Blank** template (we'll replace its placeholder files).
-   - **Space hardware**: the free tier (usually labeled **CPU basic** and marked **Free**).
-   - **Visibility**: **Public** is simplest and free either way; **Private** also works if you'd
-     rather the code not be visible on huggingface.co.
-3. Click **Create Space**.
+1. Go to the [Google Cloud console](https://console.cloud.google.com).
+2. Top bar → the project dropdown → **New Project**. Name it e.g. `road-designer`; note the
+   **Project ID** it generates (like `road-designer-472912`) — you'll use it below.
+3. Left menu → **Billing** → link a billing account (add a card if you don't have one). Cloud
+   Run will refuse to deploy without this even for free-tier usage.
+4. *(Optional but recommended)* **Billing → Budgets & alerts → Create budget**: amount `$1`,
+   alert at 100 %. You'll get an email long before any real charge.
 
-You now have an empty Space at `https://huggingface.co/spaces/<your-username>/<space-name>`,
-with an auto-generated `README.md` (it already contains the metadata Hugging Face needs —
-don't touch it) and a placeholder `Dockerfile`.
+### A.2 — Point gcloud at your project and enable the APIs
 
-### A.2 — Get a write access token
-
-Hugging Face Spaces are just git repositories — you push code to them like any other git
-remote. To push over HTTPS you need a token (not your account password):
-
-1. Click your profile picture (top-right) → **Settings** → **Access Tokens**.
-2. Click **New token** (or **Create new token**).
-3. Name it something like `road-designer-deploy`, set **Type** to **Write**.
-4. Click **Create**, then **copy the token somewhere safe** — it's shown only once.
-
-### A.3 — Why this needs a small assembly step
-
-Hugging Face's Docker SDK requires the `Dockerfile` to sit at the **root** of the Space's own
-git repository. Ours lives at `backend/Dockerfile` in this project, and it expects
-`road_designer/`, `samples/`, and `backend/` to be *siblings* (it does `COPY road_designer ...`,
-`COPY samples ...`, `COPY backend ...` from the build context root — see `backend/Dockerfile`
-and `CLAUDE.md` § 15 if you want the full reasoning).
-
-So instead of pushing this whole monorepo as-is, you'll push a **separate clone of the Space**,
-containing just those three folders plus one copy of the Dockerfile at its root. This is a
-one-time setup; updating later (§ 9) is the same handful of commands run again.
-
-### A.4 — Assemble and push
-
-Run this from a terminal, **outside** your `Road_designe` project folder (anywhere is fine —
-this creates a new folder next to it):
+In your terminal (or Cloud Shell):
 
 ```bash
-git clone https://huggingface.co/spaces/<your-username>/<space-name> road-designer-space
-cd road-designer-space
+gcloud auth login                       # opens a browser; skip in Cloud Shell (already authed)
+gcloud config set project YOUR_PROJECT_ID
 
-# adjust this path to wherever your Road_designe project actually lives
-PROJECT=/path/to/Road_designe
-
-cp -r "$PROJECT/road_designer" ./road_designer
-cp -r "$PROJECT/samples" ./samples
-cp -r "$PROJECT/backend" ./backend
-cp -r "$PROJECT/brand" ./brand
-cp "$PROJECT/LICENSE" "$PROJECT/NOTICE" "$PROJECT/THIRD-PARTY-NOTICES.md" ./  # Notice Files — required by LICENSE § 3.4
-cp ./backend/Dockerfile ./Dockerfile   # Hugging Face needs it at the repo root
-rm ./backend/Dockerfile                 # avoid keeping two copies lying around
-
-git add -A
-git commit -m "Deploy Road Designer API"
-git push
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
 ```
 
-When `git push` asks for credentials:
-- **Username**: your Hugging Face username.
-- **Password**: paste the **access token** from A.2 (not your account password).
-
-### A.4b — Declare the licence on the Space
-
-The Space came with an auto-generated `README.md` whose top block (between two `---` lines) is
-Hugging Face front-matter. Open it and add these three lines inside that block (leave everything
-else as-is):
-
-```yaml
-license: other
-license_name: beamstack-community-license-1.0
-license_link: LICENSE
-```
-
-`license_link: LICENSE` resolves to the `LICENSE` file you just copied into the Space repo, so
-the Space page links to the real text. Below the `---` block you can also add a body line:
-
-```
-Powered by Beamstack — source and licence: https://github.com/<your-username>/<repo>
-```
-
-Then commit and push:
+If you're using Cloud Shell, also get the code there:
 
 ```bash
-git add README.md && git commit -m "Declare licence" && git push
+git clone https://github.com/YOUR_GH_USERNAME/YOUR_REPO.git
+cd YOUR_REPO
 ```
 
-The backend is an API with no user interface, so the "Powered by Beamstack" *badge* requirement
-(`LICENSE` § 3.7(b)) does not apply to it — shipping the `LICENSE` / `NOTICE` /
-`THIRD-PARTY-NOTICES.md` files (done in A.4) plus this README line is what it needs. The badge
-requirement *does* apply to the React SPA and the Streamlit app — see B.5 and Part D.
+If you're local, just `cd` into your `Road_designe` folder.
 
-### A.5 — Watch it build
+### A.3 — Deploy
 
-Go back to the Space's page in your browser. It'll show a **Building** status with a live log
-— this takes a couple of minutes (installing numpy/scipy/matplotlib/etc. isn't instant). If it
-fails, the **Logs** tab tells you why (see [Troubleshooting](#10-troubleshooting) if it's not
-obvious). Once it says **Running**, you're live.
+From the **repo root** (the folder containing `Dockerfile`, `road_designer/`, `backend/`):
 
-### A.6 — Find your URL and test it
-
-Your backend's URL follows the pattern:
-
-```
-https://<your-username>-<space-name>.hf.space
+```bash
+gcloud run deploy road-designer-api \
+  --source . \
+  --region europe-west1 \
+  --allow-unauthenticated \
+  --memory 1Gi \
+  --cpu 1 \
+  --no-cpu-throttling \
+  --max-instances 3 \
+  --timeout 600
 ```
 
-(dashes replace spaces/underscores — the exact URL is also shown at the top of the Space page
-once it's running). Open these in a browser to confirm it's alive:
+What each flag does:
 
-- `https://<your-space-url>/health` → should show `{"status":"ok"}`
-- `https://<your-space-url>/docs` → interactive API documentation (FastAPI's built-in Swagger UI)
+| Flag | Why |
+|---|---|
+| `--source .` | Build the image from the repo-root `Dockerfile` (Cloud Build does it; the first run offers to create an Artifact Registry repo — answer **Y**). |
+| `--region europe-west1` | Belgium — close to Morocco with full Cloud Run support. `europe-southwest1` (Madrid) is closer still; any region works, free-tier compute is region-independent. |
+| `--allow-unauthenticated` | It's a public API. |
+| `--memory 1Gi` | scipy + matplotlib rendering a 100-page cross-section PDF needs headroom. `512Mi` works for modest inputs and stretches the free tier further, at some OOM risk. |
+| `--no-cpu-throttling` | **Important.** This backend finishes design jobs in a background thread *after* the HTTP response is sent. Without this flag Cloud Run throttles CPU to ~zero once the response is sent and the job stalls. |
+| `--max-instances 3` | Caps a runaway bill from a bug or abuse. Plenty for this workload. |
+| `--timeout 600` | 10-minute request ceiling. Requests are actually short (submit / poll / download), but big first builds can be slow. |
 
-**Write this URL down** — you need it in the next part.
+The build takes a few minutes (installing numpy/scipy/matplotlib). When it finishes, gcloud
+prints a **Service URL** like `https://road-designer-api-abcdefghij-ew.a.run.app`.
+
+### A.4 — Test it
+
+Open in a browser:
+
+- `https://YOUR-SERVICE-URL/health` → `{"status":"ok"}`
+- `https://YOUR-SERVICE-URL/docs` → FastAPI's Swagger UI
+
+**Write the Service URL down** — Part B needs it. You can also fetch it any time with:
+
+```bash
+gcloud run services describe road-designer-api --region europe-west1 --format 'value(status.url)'
+```
+
+### A.5 — About the free tier and cold starts
+
+With `--no-cpu-throttling`, Cloud Run bills for the whole time an instance is alive — during
+requests, plus ~15 minutes idle before it scales to zero. At 1 vCPU + 1 GiB, the free monthly
+allotment (180,000 vCPU-seconds) is about **50 instance-hours per month**. Occasional use stays
+well under that. See [§ 11](#11-what-this-costs).
+
+The trade-off: after it scales to zero, the next request pays a **cold start** (~10–30 s for
+this image). That's normal. Do **not** wire up the keep-alive workflow against Cloud Run (see
+[Part E](#7-part-e--cold-starts)) — keeping it warm 24/7 would blow the free allotment.
 
 ---
 
@@ -215,90 +195,91 @@ once it's running). Open these in a browser to confirm it's alive:
 ### B.1 — Create the Pages project
 
 1. Log in to the [Cloudflare dashboard](https://dash.cloudflare.com).
-2. In the left sidebar, click **Workers & Pages**.
-3. Click **Create** → the **Pages** tab → **Connect to Git**.
-4. Authorize Cloudflare to access your GitHub account if prompted, then pick this repository.
+2. Left sidebar → **Workers & Pages**.
+3. **Create** → the **Pages** tab → **Connect to Git**.
+4. Authorise Cloudflare for your GitHub account if prompted, then pick this repository.
 
 ### B.2 — Configure the build
 
-This is the step that matters most — Cloudflare needs to know your React app lives in a
-subfolder of this repo, not at its root:
+Cloudflare needs to know the React app lives in a subfolder:
 
 | Field | Value |
 |---|---|
 | Project name | anything, e.g. `road-designer` (becomes part of your `*.pages.dev` URL) |
 | Production branch | `main` |
-| Framework preset | **Vite** (or **None** — either works, since the build command is explicit) |
+| Framework preset | **Vite** (or **None** — the build command is explicit either way) |
 | Build command | `npm run build` |
 | Build output directory | `dist` |
-| **Root directory** | **`frontends/react`** ← this is the monorepo setting, don't skip it |
+| **Root directory** | **`frontends/react`** ← the monorepo setting, don't skip it |
 
-### B.3 — Set the backend URL (before the first real deploy, or redeploy after)
+### B.3 — Set the backend URL
 
-Cloudflare will try to build immediately after you save the above — let it, but the app won't
-be able to reach the backend yet because the API URL isn't set. Fix that:
+Cloudflare builds immediately after you save — let it, but the app can't reach the backend
+until you set the URL:
 
-1. Go to the Pages project → **Settings** → **Environment variables**.
-2. Add a variable for **both Production and Preview**:
+1. Pages project → **Settings** → **Environment variables**.
+2. Add, for **both Production and Preview**:
    - **Name**: `VITE_API_BASE_URL`
-   - **Value**: your Hugging Face Space URL from A.6, e.g. `https://you-road-designer-api.hf.space`
-     (no trailing slash).
-3. Save, then go to the **Deployments** tab and **Retry deployment** (or just push any commit —
-   either triggers a fresh build).
+   - **Value**: your Cloud Run Service URL from A.4, e.g.
+     `https://road-designer-api-abcefghij-ew.a.run.app` (no trailing slash).
+3. **Deployments** tab → **Retry deployment** (or push any commit) to rebuild.
 
-This is important: **`VITE_API_BASE_URL` is baked into the JavaScript at build time**, not read
-at runtime. Setting it *after* a build has already happened does nothing until the next build.
+**`VITE_API_BASE_URL` is baked into the JavaScript at build time**, not read at runtime.
+Changing it does nothing until the next build.
 
 ### B.4 — Get your URL
 
-Once the deploy finishes, Cloudflare gives you a URL like `https://road-designer.pages.dev`.
-Open it — you should see the app's UI, though submitting a design will fail with a CORS error
-until Part C is done (that's expected, not a bug).
+The finished deploy gives you `https://road-designer.pages.dev`. Open it — the UI loads, but
+submitting a design fails with a CORS error until Part C. That's expected.
 
 ### B.5 — Check the "Powered by Beamstack" credit is visible
 
 `LICENSE` § 3.7 requires any deployed UI built on Road Designer to show "Powered by Beamstack"
 (the text, or the logo in `brand/`), linked to <https://beam-stack.com>, somewhere a user would
-look for credits — the app footer, an About panel, or a splash screen. It need not be on every
-screen. Confirm it renders on your deployed Pages URL; if it's missing, add it to the SPA before
-treating the deploy as done. This applies to any fork or third-party deployment too, not just
-yours.
+look for credits — a footer, an About panel, a splash screen. Not required on every screen.
+Confirm it renders; if it's missing, add it to the SPA before treating the deploy as done. This
+applies to any fork or third-party deployment too, not just yours.
 
 ---
 
 ## 5. Part C — Close the loop: lock down CORS
 
-Right now the backend accepts requests from any origin (`ALLOWED_ORIGIN` defaults to `"*"`) —
-fine for getting things working, not something to leave in place. Point it at your real
-Cloudflare Pages URL from B.4:
+Right now the backend accepts any origin (`ALLOWED_ORIGIN` defaults to `"*"`). Point it at your
+real Pages URL from B.4:
 
-1. Go back to your Hugging Face Space → **Settings** tab.
-2. Find **Variables and secrets** → **New variable** (not "secret" — this isn't sensitive).
-3. **Name**: `ALLOWED_ORIGIN`
-   **Value**: your Pages URL from B.4, e.g. `https://road-designer.pages.dev` (no trailing
-   slash; comma-separate multiple origins if you ever add a custom domain later).
-4. Save — the Space restarts automatically to pick it up (takes under a minute).
+```bash
+gcloud run services update road-designer-api \
+  --region europe-west1 \
+  --update-env-vars ALLOWED_ORIGIN=https://road-designer.pages.dev
+```
 
-Now the React app at your Pages URL should be able to submit designs successfully.
+(No trailing slash. Comma-separate multiple origins if you add a custom domain later:
+`--update-env-vars ALLOWED_ORIGIN=https://road-designer.pages.dev,https://roads.example.com`.)
+
+Or in the console: **Cloud Run → road-designer-api → Edit & deploy new revision → Variables &
+Secrets → add `ALLOWED_ORIGIN`**.
+
+The new revision rolls out in under a minute. The React app at your Pages URL can now submit
+designs.
 
 ---
 
 ## 6. Part D — Fix the Streamlit Cloud app
 
-The Streamlit app's code moved from `app.py` to `frontends/streamlit/app.py` in this repo's
-restructure. If you already have this app deployed on Streamlit Community Cloud, its dashboard
-still points at the old path and needs updating:
+The Streamlit app's code moved from `app.py` to `frontends/streamlit/app.py` in the repo
+restructure. If it's already deployed on Streamlit Community Cloud, its dashboard still points
+at the old path:
 
 1. Go to [share.streamlit.io](https://share.streamlit.io) and log in.
-2. Find your app in the list, click the **⋮** menu next to it → **Settings**.
-3. Under **General**, change **Main file path** to:
+2. Find your app → the **⋮** menu → **Settings**.
+3. Under **General**, set **Main file path** to:
    ```
    frontends/streamlit/app.py
    ```
-4. Save. The app reboots automatically with the new path.
+4. Save. The app reboots with the new path.
 
-If you haven't deployed the Streamlit app yet, just point a new Streamlit Cloud app at this
-path from the start when you create it — same field, same value.
+If you haven't deployed the Streamlit app yet, point a new Streamlit Cloud app at that same
+path from the start.
 
 As with the React SPA (B.5), the Streamlit app must show the "Powered by Beamstack" credit
 (`LICENSE` § 3.7) — in the sidebar, the page footer, or an "À propos" expander — linked to
@@ -306,38 +287,38 @@ As with the React SPA (B.5), the Streamlit app must show the "Powered by Beamsta
 
 ---
 
-## 7. Part E — Keep the backend from falling asleep
+## 7. Part E — Cold starts
 
-Hugging Face's free-tier Spaces can go to sleep after a period of inactivity, causing a slow
-"cold start" on the next request. This repo already ships a GitHub Actions workflow
-(`.github/workflows/keep-alive-hf-space.yml`) that pings the backend's `/health` endpoint every
-~12 minutes to keep it warm — it just needs one secret set:
+Cloud Run scales the backend to zero when idle, so the first request after a quiet spell pays a
+**cold start** of ~10–30 s (container start + Python imports). Subsequent requests are fast
+until it goes idle again.
 
-1. In this repo on GitHub, go to **Settings** → **Secrets and variables** → **Actions**.
-2. Click **New repository secret**.
-3. **Name**: `HF_SPACE_HEALTH_URL`
-   **Value**: `https://<your-space-url>/health` (from A.6).
-4. Save.
+This repo ships `.github/workflows/keep-alive-backend.yml`, a cron ping that keeps a sleeping
+backend warm. **Do not use it with this Cloud Run setup.** Because you deployed with
+`--no-cpu-throttling`, a kept-warm instance is billed continuously and would blow the free
+monthly allotment. Leave the secret unset; the workflow no-ops.
 
-The workflow will start running on its own schedule — no further action needed. If the secret
-isn't set, the workflow just logs a message and does nothing (it won't fail your repo's checks).
+The keep-alive workflow *is* useful if you later move to Hugging Face (Part G), Render, or
+Koyeb — hosts where an idle instance is free. Set the `BACKEND_HEALTH_URL` repo secret then.
+
+If cold starts genuinely bother you before you have that much traffic, the options are: accept
+them (simplest); pay Cloud Run for a warm `--min-instances 1` (leaves the free tier, ~$70/mo at
+1 vCPU/1 GiB — not worth it); or move to HF PRO (Part G, flat $9/mo, and then keep-alive is
+fine).
 
 ---
 
 ## 8. Part F — Final end-to-end check
 
-With all of the above done, do one full pass as a real user would:
-
 1. Open your Cloudflare Pages URL.
-2. Fill in the form — an axe file, a terrain CSV (or the synthetic-terrain option), a REFT
-   category, and a **company name** (required — the submit button stays disabled without it,
-   same rule as the Streamlit app).
-3. Submit, watch the job status go `queued → running → done`.
-4. Download all 4 files (DXF, XLSX, both PDFs) and confirm they open correctly.
+2. Fill the form — an axe file, a terrain CSV (or the synthetic-terrain option), a REFT
+   category, and a **company name** (required — submit stays disabled without it).
+3. Submit; watch the job go `queued → running → done` (the first submit of the day eats a cold
+   start — give it up to a minute).
+4. Download all 4 files (DXF, XLSX, both PDFs); confirm they open.
 5. Check the preview tabs (profil en long / Bruckner / tracé en plan) render.
-6. Separately, open your Streamlit Cloud URL and confirm it still works exactly as before.
-
-If everything above works, you're fully deployed.
+6. Separately, open your Streamlit Cloud URL and confirm it still works.
+7. Confirm "Powered by Beamstack" is visible on both the SPA and the Streamlit app.
 
 ---
 
@@ -345,33 +326,23 @@ If everything above works, you're fully deployed.
 
 Each surface updates independently:
 
-- **Streamlit** and **Cloudflare Pages** both auto-redeploy on every push to `main` (that's
-  what the Git integration in Part B and Streamlit Cloud's own GitHub integration do — no
-  extra steps needed).
-- **The Hugging Face Space does not auto-sync from GitHub** — it's a separate git remote (see
-  § 3.4's reasoning). To push new backend/engine code to it, repeat the copy step from A.4 in
-  your existing `road-designer-space` clone (no need to re-clone or redo A.1–A.3):
+- **Streamlit** and **Cloudflare Pages** auto-redeploy on every push to `main` — nothing to do.
+- **Cloud Run does not auto-deploy from GitHub.** After pushing backend or engine changes,
+  re-run the deploy from the repo root:
 
   ```bash
-  cd road-designer-space
-  PROJECT=/path/to/Road_designe
-
-  rsync -a --delete "$PROJECT/road_designer/" ./road_designer/
-  rsync -a --delete "$PROJECT/samples/" ./samples/
-  rsync -a --delete "$PROJECT/backend/" ./backend/
-  rsync -a --delete "$PROJECT/brand/" ./brand/
-  cp "$PROJECT/LICENSE" "$PROJECT/NOTICE" "$PROJECT/THIRD-PARTY-NOTICES.md" ./
-  rm -f ./backend/Dockerfile   # the copy at repo root (below) is the one that counts
-
-  cp "$PROJECT/backend/Dockerfile" ./Dockerfile   # only needed if the Dockerfile itself changed
-
-  git add -A
-  git commit -m "Update Road Designer API"
-  git push
+  gcloud run deploy road-designer-api --source . --region europe-west1 \
+    --allow-unauthenticated --memory 1Gi --cpu 1 --no-cpu-throttling \
+    --max-instances 3 --timeout 600
   ```
 
-  (`rsync --delete` makes sure files removed from the source also disappear from the Space —
-  plain `cp -r` would leave stale files behind.)
+  Environment variables (`ALLOWED_ORIGIN`) persist across deploys — you don't need to re-set
+  them. Cloud Run keeps old container images in Artifact Registry; every few months, delete old
+  ones (**Artifact Registry → cloud-run-source-deploy → delete old tags**) or the storage can
+  creep past the 0.5 GB free limit (~$0.05/GB/month after that).
+
+*(Want push-to-deploy? Cloud Run → your service → **Set up Continuous Deployment** wires it to
+your GitHub repo via Cloud Build. Optional; the one command above is enough.)*
 
 ---
 
@@ -379,25 +350,118 @@ Each surface updates independently:
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| Browser console shows a CORS error when submitting a design | `ALLOWED_ORIGIN` on the HF Space doesn't match your Pages URL exactly | Recheck Part C — no trailing slash, exact scheme (`https://`), exact hostname |
-| Every API call from the React app 404s or hits `localhost` | `VITE_API_BASE_URL` wasn't set before the last build, or has a typo | Recheck B.3, then trigger a fresh Cloudflare Pages deploy — this variable is baked in at build time, changing it alone does nothing |
-| HF Space stuck on "Building" or fails outright | Check the **Logs** tab on the Space page for the actual error | Common culprits: forgot to delete the extra `backend/Dockerfile` copy (harmless but confusing), or a typo in a copied path |
-| `git push` to the Space keeps asking for a password / rejects it | Used your Hugging Face account password instead of the access token | Use the **token** from A.2 as the password, username is still your HF username |
-| First request after a while is slow | Free-tier Space cold start | Set up Part E; a very long idle stretch can still cause one cold request even with the keep-alive ping |
-| Design job seems to hang on "running" for a long time | Normal for larger inputs — cross-section PDFs with 100+ pages take real time to render | Give it a minute or two before assuming something's wrong; check the Space's **Logs** tab for progress lines |
-| Streamlit app shows a blank page or import error after the path change | Main file path wasn't actually saved, or a leftover cached deploy | Recheck Part D's exact path string, save again, and use "Reboot app" from the Streamlit Cloud dashboard if needed |
+| `gcloud run deploy` fails: billing not enabled | No billing account linked | A.1 step 3 — link a billing account to the project |
+| Deploy fails on `--allow-unauthenticated` (`Setting IAM policy failed`) | An org policy blocks public services (rare on personal projects) | Deploy without the flag, then **Cloud Run → service → Security → Allow unauthenticated**, or ask your org admin |
+| Browser console shows a CORS error when submitting | `ALLOWED_ORIGIN` doesn't match the Pages URL exactly | Recheck Part C — no trailing slash, exact `https://`, exact hostname; confirm a new revision deployed |
+| Every API call from the SPA hits `localhost` or 404s | `VITE_API_BASE_URL` wasn't set before the last build, or has a typo | Recheck B.3, then trigger a fresh Cloudflare Pages build — it's baked in at build time |
+| Job sticks on `running` and never finishes | You deployed **without** `--no-cpu-throttling`, so the background thread is starved | Re-run the deploy command from § 9 (it includes the flag) |
+| First request after a while takes ~20 s | Cold start after scale-to-zero | Expected. Part E. Don't "fix" it with keep-alive on this setup. |
+| Job seems slow on big inputs | 100+ page cross-section PDFs take real time to render | Give it a minute; check logs (**Cloud Run → service → Logs**) for progress |
+| Build fails pulling a huge context / times out | A stray `Road_venv/` or `node_modules/` got uploaded | `.gcloudignore` should prevent this — confirm it's present at the repo root and not gitignored |
+| Streamlit app blank / import error after the path change | Main file path not saved, or a stale deploy | Recheck Part D's path string, save again, "Reboot app" from the dashboard |
 
 ---
 
 ## 11. What this costs
 
-All three surfaces run on free tiers as configured here:
-
-- **Hugging Face Spaces** — CPU-basic hardware is free; no time limit, subject to the
-  sleep/cold-start behavior noted in Part E.
-- **Cloudflare Pages** — free tier includes unlimited requests and bandwidth for static sites;
-  builds are rate-limited per month on the free plan, which is generous for a project updated a
-  few times a week.
 - **Streamlit Community Cloud** — free for public apps.
+- **Cloudflare Pages** — free: unlimited requests and bandwidth for static sites; monthly build
+  quota is generous for a project updated a few times a week.
+- **Google Cloud Run** — always-free monthly allotment: **2M requests, 180,000 vCPU-seconds,
+  360,000 GiB-seconds, 1 GiB North-America egress**. With `--no-cpu-throttling` at 1 vCPU /
+  1 GiB, the binding limit is ~**50 instance-hours/month**. A few designs a day, each keeping an
+  instance alive ~15–20 min, is far under that → **$0**. Cloud Build (image builds) is free up
+  to 120 minutes/day; a build here is ~3–5 minutes. Artifact Registry storage past 0.5 GB is
+  ~$0.05/GB/month — trim old images occasionally (§ 9).
+- **Hugging Face** — only if you do Part G: **PRO is $9/month**, flat, and then the backend
+  doesn't sleep and the keep-alive ping is free to run.
 
-Nothing here requires a paid plan on any platform.
+**The crossover.** Cloud Run is free while traffic is light. If it grows enough that an
+instance is alive most of the day, Cloud Run's usage billing (~$0.10/instance-hour ⇒ tens of
+dollars/month for near-always-on) exceeds HF PRO's flat $9. That's the point to run Part G.
+
+---
+
+## 12. Part G — Switching the backend to Hugging Face Spaces later
+
+Do this only when [§ 11](#11-what-this-costs)'s crossover is reached (or if you just prefer HF).
+It needs a **PRO** subscription ($9/mo) for CPU hardware. The `Dockerfile` is unchanged — it
+already listens on `$PORT` and falls back to `7860`, which is exactly what HF expects.
+
+### G.1 — Create the Space
+
+1. Subscribe to [Hugging Face PRO](https://huggingface.co/pricing).
+2. [huggingface.co/new-space](https://huggingface.co/new-space):
+   - **Space name**: `road-designer-api`.
+   - **License**: **Other** (declared properly in G.3).
+   - **SDK**: **Docker** → **Blank** template.
+   - **Hardware**: **CPU basic** (now available because you're PRO).
+   - **Visibility**: Public or Private, your call.
+3. **Create Space**.
+
+### G.2 — Get a write token
+
+Profile picture → **Settings** → **Access Tokens** → **New token**, type **Write**, copy it.
+
+### G.3 — Assemble and push
+
+HF's Docker SDK wants the `Dockerfile` at the Space repo's own root, with `road_designer/`,
+`samples/`, `backend/` and the Notice Files as siblings. Push a separate clone of the Space
+containing exactly that:
+
+```bash
+git clone https://huggingface.co/spaces/YOUR_HF_USERNAME/road-designer-api road-designer-space
+cd road-designer-space
+
+PROJECT=/path/to/Road_designe    # adjust
+
+cp -r "$PROJECT/road_designer" ./road_designer
+cp -r "$PROJECT/samples"       ./samples
+cp -r "$PROJECT/backend"       ./backend
+cp -r "$PROJECT/brand"         ./brand
+cp "$PROJECT/Dockerfile" "$PROJECT/LICENSE" "$PROJECT/NOTICE" "$PROJECT/THIRD-PARTY-NOTICES.md" ./
+
+git add -A
+git commit -m "Deploy Road Designer API"
+git push        # username = your HF username, password = the WRITE token from G.2
+```
+
+For later updates, re-run the `cp`/`rsync` and `git push` (no need to re-create the Space):
+
+```bash
+cd road-designer-space
+PROJECT=/path/to/Road_designe
+rsync -a --delete "$PROJECT/road_designer/" ./road_designer/
+rsync -a --delete "$PROJECT/samples/"       ./samples/
+rsync -a --delete "$PROJECT/backend/"       ./backend/
+rsync -a --delete "$PROJECT/brand/"         ./brand/
+cp "$PROJECT/Dockerfile" "$PROJECT/LICENSE" "$PROJECT/NOTICE" "$PROJECT/THIRD-PARTY-NOTICES.md" ./
+git add -A && git commit -m "Update Road Designer API" && git push
+```
+
+### G.4 — Declare the licence on the Space
+
+The Space's auto-generated `README.md` has a front-matter block between two `---` lines. Add:
+
+```yaml
+license: other
+license_name: beamstack-community-license-1.0
+license_link: LICENSE
+```
+
+and optionally a body line: `Powered by Beamstack — source: https://github.com/<you>/<repo>`.
+Commit and push. (No UI badge needed — the backend has none.)
+
+### G.5 — Cut over
+
+1. Wait for the Space to show **Running**; its URL is `https://YOUR_HF_USERNAME-road-designer-api.hf.space`.
+   Check `/health` and `/docs`.
+2. **Space → Settings → Variables and secrets → New variable**: `ALLOWED_ORIGIN` =
+   your Cloudflare Pages URL.
+3. **Cloudflare Pages → Settings → Environment variables**: change `VITE_API_BASE_URL` to the
+   Space URL, then **Retry deployment**.
+4. *(Optional)* Set the `BACKEND_HEALTH_URL` repo secret to `https://<space-url>/health` so
+   `.github/workflows/keep-alive-backend.yml` keeps it warm — now safe, because HF doesn't bill
+   per idle-second.
+5. Once the SPA is confirmed working against HF, delete the Cloud Run service to stop any
+   billing: `gcloud run services delete road-designer-api --region europe-west1`.
