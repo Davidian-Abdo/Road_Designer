@@ -9,7 +9,7 @@ A step-by-step, no-assumed-experience guide to getting all three Road Designer s
 |---|---|---|
 | **Streamlit app** | Streamlit Community Cloud (free) | Always-on, standalone. The fallback that never needs a backend. |
 | **FastAPI backend** | **Google Cloud Run** (free tier) | The API the React SPA calls. Portable — can be moved to Hugging Face later ([Part G](#12-part-g--switching-the-backend-to-hugging-face-spaces-later)). |
-| **React SPA** | Cloudflare Pages (free) | The "product" frontend. Talks to the backend over HTTPS. |
+| **React SPA** | Cloudflare Pages (free), served at **`road-designer.beam-stack.com`** | The "product" frontend. Talks to the backend over HTTPS. |
 
 Written for someone doing this for the first time — every click is spelled out. If you get
 stuck partway through, jump to [Troubleshooting](#10-troubleshooting), or ask for help with
@@ -232,7 +232,22 @@ Changing it does nothing until the next build.
 The finished deploy gives you `https://road-designer.pages.dev`. Open it — the UI loads, but
 submitting a design fails with a CORS error until Part C. That's expected.
 
-### B.5 — Check the "Powered by Beamstack" credit is visible
+### B.5 — Add the custom domain
+
+You'll serve the SPA from **`road-designer.beam-stack.com`**, not the `*.pages.dev` URL.
+
+1. Pages project → **Custom domains** → **Set up a domain** → enter `road-designer.beam-stack.com`
+   → **Continue**.
+2. If `beam-stack.com` is already managed in this same Cloudflare account, Cloudflare adds the
+   DNS record for you — click **Activate domain**. If the domain's DNS lives elsewhere,
+   Cloudflare shows a `CNAME` (`road-designer` → `your-project.pages.dev`) to add at your DNS
+   provider.
+3. Wait for the status to read **Active** (a minute or two; TLS certificate is automatic).
+
+`road-designer.beam-stack.com` is now the SPA's canonical URL. The `*.pages.dev` URL keeps
+working — decide in Part C whether to allow it in CORS too.
+
+### B.6 — Check the "Powered by Beamstack" credit is visible
 
 `LICENSE` § 3.7 requires any deployed UI built on Road Designer to show "Powered by Beamstack"
 (the text, or the logo in `brand/`), linked to <https://beam-stack.com>, somewhere a user would
@@ -245,22 +260,26 @@ applies to any fork or third-party deployment too, not just yours.
 ## 5. Part C — Close the loop: lock down CORS
 
 Right now the backend accepts any origin (`ALLOWED_ORIGIN` defaults to `"*"`). Point it at your
-real Pages URL from B.4:
+SPA's real origin — the custom domain from B.5:
 
 ```bash
 gcloud run services update road-designer-api \
   --region europe-west1 \
-  --update-env-vars ALLOWED_ORIGIN=https://road-designer.pages.dev
+  --update-env-vars ALLOWED_ORIGIN=https://road-designer.beam-stack.com
 ```
 
-(No trailing slash. Comma-separate multiple origins if you add a custom domain later:
-`--update-env-vars ALLOWED_ORIGIN=https://road-designer.pages.dev,https://roads.example.com`.)
+To also allow the `*.pages.dev` fallback (and Cloudflare preview builds), comma-separate the
+origins — no spaces, no trailing slashes:
+
+```
+--update-env-vars ALLOWED_ORIGIN=https://road-designer.beam-stack.com,https://road-designer.pages.dev
+```
 
 Or in the console: **Cloud Run → road-designer-api → Edit & deploy new revision → Variables &
 Secrets → add `ALLOWED_ORIGIN`**.
 
-The new revision rolls out in under a minute. The React app at your Pages URL can now submit
-designs.
+The new revision rolls out in under a minute. The React app at `road-designer.beam-stack.com`
+can now submit designs.
 
 ---
 
@@ -281,7 +300,7 @@ at the old path:
 If you haven't deployed the Streamlit app yet, point a new Streamlit Cloud app at that same
 path from the start.
 
-As with the React SPA (B.5), the Streamlit app must show the "Powered by Beamstack" credit
+As with the React SPA (B.6), the Streamlit app must show the "Powered by Beamstack" credit
 (`LICENSE` § 3.7) — in the sidebar, the page footer, or an "À propos" expander — linked to
 <https://beam-stack.com>. Confirm it's there after the reboot.
 
@@ -310,7 +329,7 @@ fine).
 
 ## 8. Part F — Final end-to-end check
 
-1. Open your Cloudflare Pages URL.
+1. Open `https://road-designer.beam-stack.com`.
 2. Fill the form — an axe file, a terrain CSV (or the synthetic-terrain option), a REFT
    category, and a **company name** (required — submit stays disabled without it).
 3. Submit; watch the job go `queued → running → done` (the first submit of the day eats a cold
@@ -457,7 +476,8 @@ Commit and push. (No UI badge needed — the backend has none.)
 1. Wait for the Space to show **Running**; its URL is `https://YOUR_HF_USERNAME-road-designer-api.hf.space`.
    Check `/health` and `/docs`.
 2. **Space → Settings → Variables and secrets → New variable**: `ALLOWED_ORIGIN` =
-   your Cloudflare Pages URL.
+   `https://road-designer.beam-stack.com` (same value as Part C — comma-add the `*.pages.dev`
+   fallback if you kept it).
 3. **Cloudflare Pages → Settings → Environment variables**: change `VITE_API_BASE_URL` to the
    Space URL, then **Retry deployment**.
 4. *(Optional)* Set the `BACKEND_HEALTH_URL` repo secret to `https://<space-url>/health` so

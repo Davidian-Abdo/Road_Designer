@@ -43,6 +43,10 @@ npm run preview    # serve the production build locally, for a final check befor
    the build; it must be set in the Pages dashboard (or exported in your shell before a
    `wrangler pages deploy` from the CLI).
 
+5. **Custom domain**: Pages project → **Custom domains** → add `road-designer.beam-stack.com`.
+   That becomes the SPA's canonical URL, and it's the origin the backend's `ALLOWED_ORIGIN`
+   must allow (`DEPLOYMENT.md` Part C).
+
 `wrangler.toml` is included for the CLI-deploy path (`wrangler pages deploy dist`) as an
 alternative to the dashboard's Git-integration path — most users will want the dashboard path
 and can otherwise ignore this file.

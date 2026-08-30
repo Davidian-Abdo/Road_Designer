@@ -703,7 +703,7 @@ redeployed, or taken down without affecting the others:
 | Surface | Code | Hosting | URL |
 |---|---|---|---|
 | Streamlit app | `frontends/streamlit/app.py` | Streamlit Community Cloud (always-on fallback) | TODO(user): fill in after first real deploy |
-| React SPA | `frontends/react/` | Cloudflare Pages (static build) | TODO(user): fill in after first real deploy |
+| React SPA | `frontends/react/` | Cloudflare Pages (static build), custom domain `road-designer.beam-stack.com` | TODO(user): confirm after first real deploy |
 | FastAPI service | `backend/` | **Google Cloud Run** (container, scale-to-zero, free tier). HF Spaces (Docker) is the documented alternative — **PRO only** since HF's 2025 pricing change. | TODO(user): fill in after first real deploy |
 
 ```
@@ -850,7 +850,7 @@ docker run --rm -v "//c/path/to/Road_designe/tests:/app/tests:ro" \
 
 | Where | Name | Set to |
 |---|---|---|
-| Cloud Run service (`gcloud run ... --set-env-vars`) / HF Space Variables | `ALLOWED_ORIGIN` | The deployed Cloudflare Pages origin (e.g. `https://road-designer.pages.dev`) |
+| Cloud Run service (`gcloud run ... --set-env-vars`) / HF Space Variables | `ALLOWED_ORIGIN` | The SPA's origin — the custom domain `https://road-designer.beam-stack.com` (comma-add `https://road-designer.pages.dev` to keep the fallback) |
 | Cloudflare Pages dashboard | `VITE_API_BASE_URL` | The deployed backend URL (Cloud Run `https://…run.app`, or an HF Space `https://<user>-<space>.hf.space`) |
 | GitHub repo secret (optional) | `BACKEND_HEALTH_URL` | `https://<backend-host>/health` — only for HF/Render/Koyeb, **not** Cloud Run with `--no-cpu-throttling` |
 | Streamlit Cloud dashboard | "Main file path" setting | `frontends/streamlit/app.py` (must be updated manually post-move — cannot be set from the repo) |
