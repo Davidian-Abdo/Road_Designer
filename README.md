@@ -205,6 +205,8 @@ The 41 engine tests pin: axe grammar, parabola continuity, crest/sag sign, REFT 
 
 ## Licence
 
+Road-Designer is a [Beamstack](https://beam-stack.com) project on the **Community tier** of the [Beamstack License Framework](https://github.com/TheBeamstack/beamstack-licensing).
+
 **Beamstack Community License 1.1** (`LicenseRef-BCL-1.1`) — a *source-available* licence; **not** an OSI "open source" licence. It is a renamed, modified version of the Mozilla Public License 2.0 (permitted by its Section 10.3), with two conditions that apply to Road-Designer:
 
 - **No Sale** (Section 3.6) — you may not sell the software, charge for access to it, host it as a paid service, or bundle it into a paid product whose value comes mainly from its functionality. Internal use stays free, **including using it to produce paid deliverables for your clients**, as long as it is not the software itself that is being sold.

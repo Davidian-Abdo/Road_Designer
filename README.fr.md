@@ -216,6 +216,8 @@ pytest backend/tests/ -v    # API FastAPI (7 tests) — voir backend/README.md p
 
 ## Licence
 
+Road-Designer est un projet [Beamstack](https://beam-stack.com) sur le **palier Community** du [Beamstack License Framework](https://github.com/TheBeamstack/beamstack-licensing).
+
 **Beamstack Community License 1.1** (`LicenseRef-BCL-1.1`) — licence *source-available*, **pas** une licence « open source » au sens de l'OSI. C'est une version renommée et modifiée de la Mozilla Public License 2.0 (permise par sa section 10.3), avec deux conditions qui s'appliquent à Road-Designer :
 
 - **Pas de revente** (section 3.6) — vous ne pouvez pas vendre le logiciel, en faire payer l'accès, l'héberger comme service payant, ni l'intégrer à un produit payant dont la valeur vient essentiellement de ses fonctionnalités. L'usage interne reste libre, **y compris pour produire des livrables facturés à vos clients**, tant que ce n'est pas le logiciel lui-même qui est vendu.

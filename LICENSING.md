@@ -99,10 +99,21 @@ By contributing you agree your contribution is licensed under BCL-1.1 **and**
 you grant Beamstack the right to also license it commercially — this is what
 keeps the paid-licence option workable. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
+## Where this fits — the Beamstack License Framework
+
+Road-Designer is on the **Community tier** of the
+[Beamstack License Framework (BLF)](https://github.com/TheBeamstack/beamstack-licensing),
+which assigns every Beamstack project one of five tiers — **Open** (real
+open source, AGPL/MPL/Apache; e.g. Bunyan), **Community** (BCL-1.1; Road-Designer),
+**Community-Network** (BCL-1.1 + Exhibit C), **Commercial**, and **Dedicated**
+(a client-hosted private instance). The framework repo holds the canonical
+licence texts, the Beamstack CLA, templates, and the decision log.
+
 ## Using BCL-1.1 for another Beamstack project
 
-The same `LICENSE` file is the canonical BCL text for every Beamstack project.
-To adopt it for a new project:
+The `beamstack-licensing` repo holds the canonical BCL text
+([`licenses/BCL-1.1.txt`](https://github.com/TheBeamstack/beamstack-licensing/blob/main/licenses/BCL-1.1.txt));
+`scripts/apply-tier.sh` scaffolds it into a project. To adopt it manually:
 
 1. Copy `LICENSE`, `NOTICE`, `THIRD-PARTY-NOTICES` into the project. Adjust
    `NOTICE`'s product name and the third-party list.
