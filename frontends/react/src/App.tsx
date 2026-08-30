@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Header } from "@/components/Header";
 import { MissionBand } from "@/components/MissionBand";
 import { ContactFooter } from "@/components/ContactFooter";
+import { SiteFooter } from "@/components/SiteFooter";
 import { DesignForm, type DesignFormSubmitPayload } from "@/components/DesignForm";
 import { JobStatusPanel } from "@/components/JobStatusPanel";
 import { PreviewPanel } from "@/components/PreviewPanel";
@@ -48,6 +49,7 @@ export default function App() {
       </main>
 
       <ContactFooter />
+      <SiteFooter />
     </div>
   );
 }

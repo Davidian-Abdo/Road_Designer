@@ -19,6 +19,7 @@ immediately below (repo-root import path, docs/ lookup).
 """
 from __future__ import annotations
 
+import base64
 import io
 import sys
 import tempfile
@@ -52,6 +53,51 @@ from road_designer.samples_api import (
     sample_terrain_bytes,
     sample_terrain_path,
 )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# "Powered by Beamstack" attribution (LICENSE § 3.7(b))
+# ─────────────────────────────────────────────────────────────────────────────
+
+_BEAMSTACK_URL = "https://beam-stack.com"
+
+# Compact stacked-bars mark, recoloured to the Beamstack blue so it stays
+# legible on Streamlit's light background (the official brand/beamstack-logo.svg
+# is white-on-dark and must not be dropped onto a light surface as-is). Brand
+# blue #2F6BF3 is a placeholder — confirm against the official brand.
+_BEAMSTACK_MARK_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 70 60">'
+    '<rect x="0" y="0" width="70" height="14" rx="7" fill="#2F6BF3"/>'
+    '<rect x="0" y="23" width="70" height="14" rx="7" fill="#2F6BF3" opacity="0.55"/>'
+    '<rect x="0" y="46" width="70" height="14" rx="7" fill="#2F6BF3"/>'
+    "</svg>"
+)
+_BEAMSTACK_MARK_DATA_URI = "data:image/svg+xml;base64," + base64.b64encode(
+    _BEAMSTACK_MARK_SVG.encode("utf-8")
+).decode("ascii")
+
+
+def beamstack_attribution_html() -> str:
+    """Return the 'Powered by Beamstack' credit as a small, centred HTML snippet.
+
+    Satisfies LICENSE § 3.7(b): a legible, hyperlinked Attribution Mark placed
+    where a user looks for credits. Streamlit has no dedicated footer slot, so
+    this is rendered both at the bottom of the sidebar and the bottom of the
+    main page. Single call site for the markup so the two never drift.
+    """
+    return (
+        '<div style="text-align:center;margin-top:0.75rem;font-size:0.8rem;'
+        'line-height:1.4;color:#697386;">'
+        f'<a href="{_BEAMSTACK_URL}" target="_blank" rel="noopener noreferrer" '
+        'aria-label="Powered by Beamstack" '
+        'style="text-decoration:none;color:#697386;display:inline-flex;'
+        'align-items:center;gap:0.4rem;">'
+        "<span>Powered by</span>"
+        f'<img src="{_BEAMSTACK_MARK_DATA_URI}" alt="" width="15" height="13" '
+        'style="display:inline-block;vertical-align:middle;"/>'
+        '<span style="color:#2F6BF3;font-weight:600;">Beamstack</span>'
+        "</a></div>"
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -608,6 +654,9 @@ with st.sidebar:
         cart_ech_h = st.text_input("Échelle H", value=base_cfg.cartouche.echelle_h)
         cart_ech_v = st.text_input("Échelle V", value=base_cfg.cartouche.echelle_v)
 
+    st.divider()
+    st.markdown(beamstack_attribution_html(), unsafe_allow_html=True)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Build the DesignConfig from the sidebar
@@ -982,3 +1031,6 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+st.divider()
+st.markdown(beamstack_attribution_html(), unsafe_allow_html=True)
