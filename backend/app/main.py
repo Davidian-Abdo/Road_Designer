@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 Beamstack <https://beam-stack.com>
-# SPDX-License-Identifier: LicenseRef-BCL-1.0
+# SPDX-License-Identifier: LicenseRef-BCL-1.1
 """FastAPI entry point.
 
 Run locally with:  ``uvicorn backend.app.main:app --reload`` (from the repo

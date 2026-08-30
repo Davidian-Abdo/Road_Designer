@@ -1,7 +1,7 @@
 # Contributing to Road-Designer
 
 Thanks for your interest. This project is published by **Beamstack** under the
-**Beamstack Community License 1.0** ([`LICENSE`](LICENSE)); please read
+**Beamstack Community License 1.1** ([`LICENSE`](LICENSE)); please read
 [`LICENSING.md`](LICENSING.md) first so the terms below make sense.
 
 ## Getting set up
@@ -39,7 +39,7 @@ agree to **all** of the following.
 ### 1. Licence of your contribution (inbound = outbound, plus a commercial grant)
 
 You license your contribution to Beamstack and to all recipients of the software
-under the **Beamstack Community License 1.0**, the same licence as the project.
+under the **Beamstack Community License 1.1**, the same licence as the project.
 
 **In addition**, you grant to Beamstack (as defined in `LICENSE` — currently
 Abdellah Daoudi, trading as Beamstack, and any entity later incorporated to hold
@@ -106,14 +106,14 @@ Python:
 
 ```python
 # SPDX-FileCopyrightText: 2026 Beamstack <https://beam-stack.com>
-# SPDX-License-Identifier: LicenseRef-BCL-1.0
+# SPDX-License-Identifier: LicenseRef-BCL-1.1
 ```
 
 TypeScript / JavaScript:
 
 ```ts
 // SPDX-FileCopyrightText: 2026 Beamstack <https://beam-stack.com>
-// SPDX-License-Identifier: LicenseRef-BCL-1.0
+// SPDX-License-Identifier: LicenseRef-BCL-1.1
 ```
 
 ## Questions

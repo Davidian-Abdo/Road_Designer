@@ -10,11 +10,13 @@ trademark registered with OMPIC. Beamstack is not yet incorporated as a
 company; where a natural or legal person is required, the copyright holder of
 record is Abdellah Daoudi <askdaoudi@gmail.com>.
 
-Licensed under the Beamstack Community License 1.0 (LicenseRef-BCL-1.0): a
+Licensed under the Beamstack Community License 1.1 (LicenseRef-BCL-1.1): a
 source-available license, being a modified version of the Mozilla Public
-License 2.0 that adds a no-sale condition and an attribution requirement and
-removes the MPL's GPL-compatibility provisions. The full text is in the LICENSE
-file. This is NOT an OSI "open source" license.
+License 2.0 that adds a no-sale condition and an attribution requirement,
+removes the MPL's GPL-compatibility provisions, and carries an opt-in
+network-use clause (Section 3.8 / Exhibit C) that is NOT activated for
+Road-Designer. The full text is in the LICENSE file. This is NOT an OSI "open
+source" license.
 
 Third-party components redistributed with or required by this software are
 listed, with their licenses, in THIRD-PARTY-NOTICES.md. All of them are under
@@ -42,8 +44,8 @@ If you distribute, host, or build on this software - modified or not - you must:
   3. In your README / docs / about page, say the work is "based on Beamstack
      software" (or "Powered by Beamstack") with a link to https://beam-stack.com.
 
-  4. In your package metadata, identify the license as "LicenseRef-BCL-1.0"
-     (or "Beamstack Community License 1.0"). Don't relabel it as MIT/MPL/etc.
+  4. In your package metadata, identify the license as "LicenseRef-BCL-1.1"
+     (or "Beamstack Community License 1.1"). Don't relabel it as MIT/MPL/etc.
 
 You MAY: use it inside your company, including to produce paid deliverables for
 clients; give it away for free (with the items above); modify it (publish your

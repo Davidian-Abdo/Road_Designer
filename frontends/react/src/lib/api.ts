@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 Beamstack <https://beam-stack.com>
-// SPDX-License-Identifier: LicenseRef-BCL-1.0
+// SPDX-License-Identifier: LicenseRef-BCL-1.1
 import type { DesignConfigIn, JobStatus, PreviewPayload } from "./types";
 
 // Build-time env var — see .env.example. Falls back to localhost for local

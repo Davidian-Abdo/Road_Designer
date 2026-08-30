@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 Beamstack <https://beam-stack.com>
-# SPDX-License-Identifier: LicenseRef-BCL-1.0
+# SPDX-License-Identifier: LicenseRef-BCL-1.1
 """CLI entry point for Road Designer V 1.0.
 
 For the Streamlit UI see app.py (added in Step 9). For now this script

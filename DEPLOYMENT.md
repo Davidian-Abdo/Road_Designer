@@ -1,5 +1,5 @@
 <!-- SPDX-FileCopyrightText: 2026 Beamstack <https://beam-stack.com> -->
-<!-- SPDX-License-Identifier: LicenseRef-BCL-1.0 -->
+<!-- SPDX-License-Identifier: LicenseRef-BCL-1.1 -->
 
 # Deployment Guide
 
@@ -64,7 +64,7 @@ Each surface can be redeployed independently later — only the CORS setting and
 build-time API URL link the backend and the SPA together.
 
 **One licence thing before you start.** Road Designer is published under the Beamstack
-Community License 1.0 (`LICENSE` at the repo root; plain-language summary in `LICENSING.md`).
+Community License 1.1 (`LICENSE` at the repo root; plain-language summary in `LICENSING.md`).
 Deploying it publicly is fine and expected, but the licence asks two small things of every
 public deployment, yours included:
 

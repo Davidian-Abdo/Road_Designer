@@ -1,6 +1,6 @@
 # Third-party notices
 
-Road-Designer (Beamstack Community License 1.0) is built on the third-party
+Road-Designer (Beamstack Community License 1.1) is built on the third-party
 packages listed below. Each is distributed by its own authors under its own
 license; none is owned by Beamstack. All are **permissive** licenses
 (MIT, BSD-3-Clause, Apache-2.0, or the BSD-style Matplotlib License), which is

@@ -1,5 +1,5 @@
 Beamstack Community License
-Version 1.0 (BCL-1.0)
+Version 1.1 (BCL-1.1)
 
 Copyright (c) 2026 Beamstack. All rights reserved except as expressly granted
 below.
@@ -28,13 +28,16 @@ anyone to make and use a renamed, modified version of that license.
 
 This License is NOT an "open source" license as defined by the Open Source
 Initiative, and is NOT a "free software" license as defined by the Free Software
-Foundation, because it withholds the right to sell the software and requires
-attribution in a user interface. It is a "source-available" license.
+Foundation, because it withholds the right to sell the software, requires
+attribution in a user interface, and - for Covered Software that carries the
+Exhibit C notice - requires source disclosure for network deployments. It is a
+"source-available" license.
 
 It differs from the MPL 2.0 in the following material respects:
 
-  1. Section 1 adds definitions 1.15 through 1.18 ("Sell", "Deploy",
-     "Attribution Mark", "Notice Files").
+  1. Section 1 adds definitions 1.15 through 1.20 ("Sell", "Deploy",
+     "Attribution Mark", "Notice Files", "Network Deployment", "Corresponding
+     Source").
   2. Section 3.6 ("No Sale") withholds the right to Sell the Covered Software or
      to provide, for a fee, a product or service whose value derives
      substantially from it. Internal use - including use to produce paid
@@ -43,13 +46,31 @@ It differs from the MPL 2.0 in the following material respects:
      ("Powered by Beamstack" or the Beamstack logo) in the user interface,
      documentation, and package metadata of works built on the Covered
      Software, and requires the Notice Files to be kept intact.
-  4. Section 2.7 adds Sections 3.6 and 3.7 to the conditions of the grant.
-  5. The MPL 2.0 "Secondary License" / GPL-compatibility machinery is removed:
+  4. Section 3.8 ("Network Use") - a condition ONLY for Covered Software to
+     which the initial Contributor has attached the Exhibit C notice - requires
+     that, if You deploy a modified version so that others interact with it over
+     a network (expressly including in-browser or other client-side execution,
+     and access through an API or an automated agent), You offer those users the
+     Corresponding Source of Your version, at no charge, under this License. If
+     Exhibit C is not attached, Section 3.8 has no effect.
+  5. Section 2.7 adds Sections 3.6 and 3.7 to the conditions of the grant, and
+     Section 3.8 for Exhibit C software.
+  6. The MPL 2.0 "Secondary License" / GPL-compatibility machinery is removed:
      definitions 1.5 and 1.12, the second sentence onward of Section 3.3,
      Section 10.4, and Exhibit B are struck. Covered Software may not be
      re-distributed under the GNU GPL, LGPL, or AGPL.
-  6. Sections 2.3, 2.4, 10.1, and 10.3, and Exhibit A, are adjusted to name
+  7. Sections 2.3, 2.4, 10.1, and 10.3, and Exhibit A, are adjusted to name
      Beamstack and to reflect the changes above.
+
+CHANGES IN VERSION 1.1 (from version 1.0): added the notice-activated Section
+3.8 ("Network Use"), definitions 1.19-1.20, and Exhibit C. Version 1.0 had no
+network-use condition. Covered Software that does not carry the Exhibit C notice
+behaves identically under version 1.1 and version 1.0.
+
+SPDX identifier: use "LicenseRef-BCL-1.1". Covered Software that attaches the
+Exhibit C notice (Network Use active) should be identified as
+"LicenseRef-BCL-1.1-Network" so the difference is visible to tooling and to
+readers.
 
 Everything else tracks the MPL 2.0. A plain-language summary of what you may and
 may not do is in the NOTICE file and in LICENSING.md; those summaries are NOT
@@ -63,12 +84,12 @@ FUTURE AND COMMERCIAL LICENSING
 Beamstack reserves every right not expressly granted by this License, including
 the right to publish the Covered Software under different terms and to grant, for
 a fee, commercial licenses that remove the Section 3.6 condition, the Section 3.7
-condition, or both. To request a commercial license or a written waiver, email
-askdaoudi@gmail.com.
+condition, the Section 3.8 condition, or any combination of them. To request a
+commercial license or a written waiver, email askdaoudi@gmail.com.
 
 
 ================================================================================
-BEAMSTACK COMMUNITY LICENSE, VERSION 1.0 - TERMS
+BEAMSTACK COMMUNITY LICENSE, VERSION 1.1 - TERMS
 ================================================================================
 
 1. Definitions
@@ -172,6 +193,30 @@ BEAMSTACK COMMUNITY LICENSE, VERSION 1.0 - TERMS
     (with any file extension) distributed with the Covered Software, and
     any file they incorporate by reference.
 
+1.19. "Network Deployment"
+    means a Deploy (Section 1.16) in which one or more users other than
+    You interact with the functionality of the Covered Software
+    remotely. It includes interaction through a user interface, an
+    application programming interface, an automated agent, or any other
+    means; and it includes making the Covered Software, or any part of
+    it, available so that it is transmitted to and executed, in whole or
+    in part, within those users' web browsers or other client software.
+
+1.20. "Corresponding Source"
+    of a given version of the Covered Software means the Source Code Form
+    of that exact version, including every Modification You have made to
+    files that are Covered Software, together with the scripts,
+    configuration, build and packaging definitions, and
+    interface-definition files that a recipient of ordinary skill needs
+    in order to build, install, and run that version from the Source
+    Code Form. Corresponding Source does NOT include: (a) files in a
+    Larger Work (Section 1.7) that are not themselves Covered Software;
+    (b) plugins, extensions, add-on modules, data-defined definitions,
+    format codecs, themes, templates, or scripts that interoperate with
+    the Covered Software through a documented extension interface and are
+    not derived from files that are Covered Software; or (c) generally
+    available system libraries, language runtimes, and development tools.
+
 2. License Grants and Conditions
 --------------------------------
 
@@ -240,7 +285,9 @@ equivalents.
 2.7. Conditions
 
 Sections 3.1, 3.2, 3.3, 3.4, 3.6, and 3.7 are conditions of the licenses
-granted in Section 2.1.
+granted in Section 2.1. Section 3.8 is also a condition of those licenses,
+but only for Covered Software to which the initial Contributor has attached
+the notice described in Exhibit C.
 
 3. Responsibilities
 -------------------
@@ -360,9 +407,10 @@ must give attribution to Beamstack as follows:
 (d) Package metadata. Where the work is published through a package
     registry or ships package metadata (for example a "license" field in
     package.json, or Python package metadata), that metadata must
-    identify this License as "LicenseRef-BCL-1.0" or as "Beamstack
-    Community License 1.0", and must not represent the Covered Software
-    as being under a different license.
+    identify this License as "LicenseRef-BCL-1.1" (or, for Covered
+    Software that carries the Exhibit C notice, "LicenseRef-BCL-1.1-
+    Network") or as "Beamstack Community License 1.1", and must not
+    represent the Covered Software as being under a different license.
 
 (e) Scope of trademark permission. Paragraphs (b), (c), and (d) grant
     You a limited, non-exclusive permission to use the Attribution Mark
@@ -378,6 +426,48 @@ must give attribution to Beamstack as follows:
 
 (f) Relief. Beamstack may grant a written waiver or variation of this
     Section 3.7; see "FUTURE AND COMMERCIAL LICENSING" above.
+
+3.8. Network Use
+
+3.8.1. Activation. This Section imposes obligations only if the initial
+Contributor has attached the notice described in Exhibit C to the Covered
+Software. If Exhibit C is not attached, this Section imposes no obligation, and
+carrying out a Network Deployment of the Covered Software is not, by itself,
+distribution of it or a breach of this License.
+
+3.8.2. Offer of Corresponding Source. Where Exhibit C is attached: if You carry
+out a Network Deployment of the Covered Software or any Modification, You must
+offer every user who so interacts with it, at no charge and under this License,
+the Corresponding Source of the version You have deployed. The offer must be
+made prominently and by a customary means of facilitating the copying of
+software - for example, a clearly labelled link shown in the running user
+interface and, where the deployment is reachable through an application
+programming interface or by an automated agent, a documented endpoint or
+response field by which such a consumer can obtain the same Corresponding
+Source.
+
+3.8.3. Client-side execution and means of access. For the avoidance of doubt, a
+Network Deployment includes making the Covered Software, or any part of it,
+available so that it is transmitted to and executed, in whole or in part,
+within a user's web browser or other client software; and interaction "over a
+network" includes interaction through a user interface, an application
+programming interface, an automated agent, or any other means.
+
+3.8.4. Modification trigger. This Section is triggered only by Your
+Modifications. If the version You deploy is identical to a version the Licensor
+makes publicly available in Source Code Form, directing users to that public
+source satisfies Section 3.8.2.
+
+3.8.5. Scope. The obligation of this Section reaches the Covered Software and
+Your Modifications to it. Consistent with Section 3.3 and the definition of
+Corresponding Source (Section 1.20), it does not reach separately-authored
+files, plugins, extensions, data-defined definitions, format codecs, themes,
+templates, or scripts that are not themselves Covered Software.
+
+3.8.6. No substitute for other terms. Compliance with this Section neither
+grants a right withheld by Section 3.6 nor discharges Section 3.7, and the
+obligation of this Section is not satisfied, reduced, or avoided by the payment
+of any fee.
 
 4. Inability to Comply Due to Statute or Regulation
 ---------------------------------------------------
@@ -523,12 +613,14 @@ Exhibit A - Source Code Form License Notice
   Powered by Beamstack.
 
   This Source Code Form is subject to the terms of the Beamstack
-  Community License, v. 1.0 - a source-available license, being a
+  Community License, v. 1.1 - a source-available license, being a
   modified version of the Mozilla Public License 2.0 that adds a
-  no-sale condition and an attribution requirement, and removes the
-  MPL's GPL-compatibility provisions. If a copy of the license was not
-  distributed with this file, you can obtain one from the LICENSE file
-  of the project's source repository or at https://beam-stack.com.
+  no-sale condition, an attribution requirement, and (where the Exhibit
+  C notice is attached) a network-use source-disclosure requirement, and
+  removes the MPL's GPL-compatibility provisions. If a copy of the
+  license was not distributed with this file, you can obtain one from
+  the LICENSE file of the project's source repository or at
+  https://beam-stack.com.
 
 If it is not possible or desirable to put the notice in a particular
 file, then You may include the notice in a location (such as a LICENSE
@@ -538,3 +630,24 @@ for such a notice.
 You may add additional accurate notices of copyright ownership.
 
 Exhibit B - [Reserved.]
+
+Exhibit C - Network Use Notice
+------------------------------
+
+Attach this notice - in the LICENSE file, in the NOTICE file, or in the Covered
+Software's primary source headers - to activate Section 3.8 (Network Use) for
+that Covered Software. If it is not attached, Section 3.8 has no effect and a
+Network Deployment carries no source-disclosure obligation under this License.
+Covered Software that attaches this notice should be identified in package
+metadata as "LicenseRef-BCL-1.1-Network".
+
+  "This Covered Software is subject to Section 3.8 (Network Use) of the
+  Beamstack Community License, version 1.1. If you deploy this software, or a
+  modified version of it, so that other people interact with its functionality
+  over a network, you must offer those people the Corresponding Source of your
+  version, at no charge, under this License. This applies however they interact
+  with it - through a user interface, an application programming interface, or
+  an automated agent - and it applies when the software is served for execution
+  inside their web browser or other client software. If your deployed version
+  is identical to the Licensor's public source, pointing to that source is
+  enough."

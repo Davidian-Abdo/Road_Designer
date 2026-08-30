@@ -1,5 +1,5 @@
 <!-- SPDX-FileCopyrightText: 2026 Beamstack <https://beam-stack.com> -->
-<!-- SPDX-License-Identifier: LicenseRef-BCL-1.0 -->
+<!-- SPDX-License-Identifier: LicenseRef-BCL-1.1 -->
 
 [English](README.md)&nbsp;·&nbsp;**Français**
 
@@ -216,12 +216,12 @@ pytest backend/tests/ -v    # API FastAPI (7 tests) — voir backend/README.md p
 
 ## Licence
 
-**Beamstack Community License 1.0** (`LicenseRef-BCL-1.0`) — licence *source-available*, **pas** une licence « open source » au sens de l'OSI. C'est une version renommée et modifiée de la Mozilla Public License 2.0 (permise par sa section 10.3), avec deux conditions ajoutées :
+**Beamstack Community License 1.1** (`LicenseRef-BCL-1.1`) — licence *source-available*, **pas** une licence « open source » au sens de l'OSI. C'est une version renommée et modifiée de la Mozilla Public License 2.0 (permise par sa section 10.3), avec deux conditions qui s'appliquent à Road-Designer :
 
 - **Pas de revente** (section 3.6) — vous ne pouvez pas vendre le logiciel, en faire payer l'accès, l'héberger comme service payant, ni l'intégrer à un produit payant dont la valeur vient essentiellement de ses fonctionnalités. L'usage interne reste libre, **y compris pour produire des livrables facturés à vos clients**, tant que ce n'est pas le logiciel lui-même qui est vendu.
 - **Attribution Beamstack** (section 3.7) — toute application, site ou outil bâti sur ce code doit afficher « Powered by Beamstack » (ou le logo Beamstack), avec un lien vers <https://beam-stack.com>, à un endroit visible (écran « À propos », pied de page, écran de démarrage…), le citer dans sa documentation, et conserver intacts les fichiers `LICENSE`, `NOTICE` et `THIRD-PARTY-NOTICES.md`.
 
-Les modifications apportées aux fichiers du projet doivent être publiées sous la même licence (copyleft au niveau du fichier, hérité de la MPL 2.0). Détail des obligations : [`LICENSE`](LICENSE) ; résumé en langage courant : [`LICENSING.md`](LICENSING.md) et [`NOTICE`](NOTICE).
+Les modifications apportées aux fichiers du projet doivent être publiées sous la même licence (copyleft au niveau du fichier, hérité de la MPL 2.0). La BCL-1.1 comporte aussi une **section 3.8 « Network Use » optionnelle** (obligation de divulgation du code source pour les déploiements en réseau, façon AGPL) : elle s'active par une notice « Exhibit C » que **Road-Designer ne porte pas**, donc elle ne s'applique pas ici (d'autres projets Beamstack l'utilisent). Détail des obligations : [`LICENSE`](LICENSE) ; résumé en langage courant : [`LICENSING.md`](LICENSING.md) et [`NOTICE`](NOTICE).
 
 **Licence commerciale** — pour tout usage non couvert (revente, hébergement payant, suppression de l'attribution, fork fermé), une licence commerciale ou une dérogation écrite est disponible : **askdaoudi@gmail.com**.
 
