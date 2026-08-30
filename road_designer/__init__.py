@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Beamstack <https://beam-stack.com>
+# SPDX-License-Identifier: LicenseRef-BCL-1.0
 """Road Designer V 1.0 — BET-grade road design from terrain CSV + axe file."""
 
 from .config import (

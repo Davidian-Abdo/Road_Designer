@@ -1,0 +1,58 @@
+Beamstack
+https://beam-stack.com
+
+This product includes software developed by Beamstack.
+Powered by Beamstack.
+
+Copyright (c) 2026 Beamstack. "Beamstack" is the trading name of a sole
+proprietorship of Abdellah Daoudi (Kingdom of Morocco); "Beamstack" is a
+trademark registered with OMPIC. Beamstack is not yet incorporated as a
+company; where a natural or legal person is required, the copyright holder of
+record is Abdellah Daoudi <askdaoudi@gmail.com>.
+
+Licensed under the Beamstack Community License 1.0 (LicenseRef-BCL-1.0): a
+source-available license, being a modified version of the Mozilla Public
+License 2.0 that adds a no-sale condition and an attribution requirement and
+removes the MPL's GPL-compatibility provisions. The full text is in the LICENSE
+file. This is NOT an OSI "open source" license.
+
+Third-party components redistributed with or required by this software are
+listed, with their licenses, in THIRD-PARTY-NOTICES.md. All of them are under
+permissive licenses (MIT, BSD-3-Clause, Apache-2.0, or the Matplotlib License).
+
+================================================================================
+HOW TO COMPLY WITH THE ATTRIBUTION REQUIREMENT
+(summary only - Section 3.7 of the LICENSE file controls)
+================================================================================
+
+If you distribute, host, or build on this software - modified or not - you must:
+
+  1. Keep the LICENSE, NOTICE, and THIRD-PARTY-NOTICES.md files intact in every
+     copy you distribute, and keep the copyright/license headers in the source
+     files.
+
+  2. If your app, site, or service has a user interface, show the Attribution
+     Mark - the text "Powered by Beamstack", or the Beamstack logo - somewhere
+     a user would look for credits: an About / Credits / Legal screen, an app
+     footer, or a splash screen. It does NOT need to be on every screen. Where
+     links are possible, link it to https://beam-stack.com.
+     A library or CLI-only tool with no UI is exempt from this point - steps
+     1, 3, and 4 are enough.
+
+  3. In your README / docs / about page, say the work is "based on Beamstack
+     software" (or "Powered by Beamstack") with a link to https://beam-stack.com.
+
+  4. In your package metadata, identify the license as "LicenseRef-BCL-1.0"
+     (or "Beamstack Community License 1.0"). Don't relabel it as MIT/MPL/etc.
+
+You MAY: use it inside your company, including to produce paid deliverables for
+clients; give it away for free (with the items above); modify it (publish your
+changed files under this same license).
+
+You MAY NOT: sell it, charge for access to it, run it as a paid/hosted service,
+bundle it into a paid product whose value comes mainly from it, remove the
+"Powered by Beamstack" credit, or use the "Beamstack" name or logo for your own
+product, company, or to imply endorsement.
+
+Need something this license doesn't allow? Commercial licenses and written
+waivers are available: askdaoudi@gmail.com

@@ -25,6 +25,12 @@ COPY road_designer /app/road_designer
 COPY samples /app/samples
 COPY backend /app/backend
 
+# Notice Files required by the Beamstack Community License (LICENSE section 3.4).
+# They must be present in the build context: the repo root for a local build,
+# and the assembled Space repo for Hugging Face (DEPLOYMENT.md Part A copies
+# them in). If this COPY fails, that copy step was skipped.
+COPY LICENSE NOTICE THIRD-PARTY-NOTICES.md /app/
+
 ENV PYTHONPATH=/app \
     PYTHONUNBUFFERED=1 \
     MPLCONFIGDIR=/tmp/matplotlib

@@ -4,6 +4,13 @@
   "version": "1.0.0",
   "type": "module",
   "description": "Road Designer V 1.0 — React + FastAPI frontend (Cloudflare Pages deployable). Separate product from frontends/streamlit, sharing the road_designer engine via backend/.",
+  "license": "SEE LICENSE IN LICENSE",
+  "author": {
+    "name": "Beamstack",
+    "email": "askdaoudi@gmail.com",
+    "url": "https://beam-stack.com"
+  },
+  "homepage": "https://beam-stack.com",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

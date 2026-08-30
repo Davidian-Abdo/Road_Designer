@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Beamstack logo - APPROXIMATION / PLACEHOLDER.
+
+  Reconstructed from a text description of the mark at https://beam-stack.com:
+  three stacked horizontal beams (top white, middle blue, bottom white) next to
+  the wordmark "beam" (white) + "stack" (blue), on a dark ground.
+
+  Replace this file with the official vector export before relying on it for
+  the attribution requirement in LICENSE Section 3.7. Confirm the exact brand
+  blue; #2F6BF3 here is a stand-in.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 140" width="480" height="140" role="img" aria-label="Beamstack">
+  <rect width="480" height="140" rx="20" fill="#0E1626"/>
+  <!-- stacked beams -->
+  <g>
+    <rect x="40"  y="40"  width="70" height="14" rx="7" fill="#FFFFFF"/>
+    <rect x="40"  y="63"  width="70" height="14" rx="7" fill="#2F6BF3"/>
+    <rect x="40"  y="86"  width="70" height="14" rx="7" fill="#FFFFFF"/>
+  </g>
+  <!-- wordmark -->
+  <text x="132" y="88"
+        font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif"
+        font-size="52" font-weight="700" letter-spacing="0.5">
+    <tspan fill="#FFFFFF">beam</tspan><tspan fill="#2F6BF3">stack</tspan>
+  </text>
+</svg>

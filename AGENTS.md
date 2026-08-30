@@ -633,6 +633,7 @@ Two PDFs, both **fully vector**, rendered directly from `RoadDesign` data via ma
 - **No global mutable state.** Pipeline is one-shot: `DesignConfig + paths → DXF / XLSX / PDF bytes`.
 - **Output** outside Streamlit goes to `output/` (gitignored), never to the repo root.
 - **Run order**: cross-sections must be computed before cubatures so polygon areas are available to the cubature calculation (Step 7b). `build_design` enforces this.
+- **Licence**: the repo is published under the **Beamstack Community License 1.0** (`LICENSE`, `LicenseRef-BCL-1.0`) — a modified MPL 2.0 with a no-sale condition (§3.6) and a "Powered by Beamstack" attribution condition (§3.7). New source files carry the SPDX header `SPDX-License-Identifier: LicenseRef-BCL-1.0` + `SPDX-FileCopyrightText: 2026 Beamstack <https://beam-stack.com>`. Keep `LICENSE`, `NOTICE`, `THIRD-PARTY-NOTICES.md` intact and shipped with every surface. Any user-facing surface (Streamlit app, React SPA) must render a "Powered by Beamstack" credit linked to `https://beam-stack.com`; the FastAPI backend is UI-less and exempt from the badge. Adding a dependency under a copyleft or source-available licence needs a check against `LICENSE` §3 and an entry in `THIRD-PARTY-NOTICES.md`. Contributor terms + the commercial-relicensing grant are in `CONTRIBUTING.md`. See `LICENSING.md` for the plain-language version.
 
 ---
 

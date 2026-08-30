@@ -51,6 +51,19 @@ You're deploying **three separate things**, in this order:
 Each of these can be redone independently later — none of them depend on each other at
 runtime, only the CORS setting and the frontend's build-time API URL link them together.
 
+**One licence thing before you start.** Road Designer is published under the Beamstack
+Community License 1.0 (`LICENSE` at the repo root; plain-language summary in `LICENSING.md`).
+Deploying it publicly is fine and expected, but the licence asks two small things of every
+public deployment, yours included:
+
+1. The `LICENSE`, `NOTICE`, and `THIRD-PARTY-NOTICES.md` files must travel with the code you
+   push to Hugging Face — the assembly step in Part A now copies them, and `backend/Dockerfile`
+   now `COPY`s them into the image.
+2. The user-facing surfaces — the React SPA (Part B) and the Streamlit app (Part D) — must show
+   a "Powered by Beamstack" credit linked to <https://beam-stack.com>, somewhere a user would
+   look for credits (a footer, an About panel, a splash screen). It need not be on every screen.
+   The FastAPI backend has no UI, so it only needs point 1.
+
 ---
 
 ## 2. Before you start
@@ -76,7 +89,10 @@ a terminal to run a handful of copy-paste commands.
 2. Fill in the form:
    - **Owner**: your username.
    - **Space name**: something like `road-designer-api`.
-   - **License**: pick anything — it doesn't affect how the Space runs.
+   - **License**: choose **Other**. Road Designer is under the Beamstack Community
+     License 1.0, which is not in Hugging Face's licence list; you'll declare it
+     properly in the Space README in step A.4b. (The dropdown doesn't affect how
+     the Space runs, but it shouldn't misreport the licence as MIT/Apache/etc.)
    - **Select the Space SDK**: choose **Docker**.
    - **Docker template**: choose the **Blank** template (we'll replace its placeholder files).
    - **Space hardware**: the free tier (usually labeled **CPU basic** and marked **Free**).
@@ -125,6 +141,8 @@ PROJECT=/path/to/Road_designe
 cp -r "$PROJECT/road_designer" ./road_designer
 cp -r "$PROJECT/samples" ./samples
 cp -r "$PROJECT/backend" ./backend
+cp -r "$PROJECT/brand" ./brand
+cp "$PROJECT/LICENSE" "$PROJECT/NOTICE" "$PROJECT/THIRD-PARTY-NOTICES.md" ./  # Notice Files — required by LICENSE § 3.4
 cp ./backend/Dockerfile ./Dockerfile   # Hugging Face needs it at the repo root
 rm ./backend/Dockerfile                 # avoid keeping two copies lying around
 
@@ -136,6 +154,36 @@ git push
 When `git push` asks for credentials:
 - **Username**: your Hugging Face username.
 - **Password**: paste the **access token** from A.2 (not your account password).
+
+### A.4b — Declare the licence on the Space
+
+The Space came with an auto-generated `README.md` whose top block (between two `---` lines) is
+Hugging Face front-matter. Open it and add these three lines inside that block (leave everything
+else as-is):
+
+```yaml
+license: other
+license_name: beamstack-community-license-1.0
+license_link: LICENSE
+```
+
+`license_link: LICENSE` resolves to the `LICENSE` file you just copied into the Space repo, so
+the Space page links to the real text. Below the `---` block you can also add a body line:
+
+```
+Powered by Beamstack — source and licence: https://github.com/<your-username>/<repo>
+```
+
+Then commit and push:
+
+```bash
+git add README.md && git commit -m "Declare licence" && git push
+```
+
+The backend is an API with no user interface, so the "Powered by Beamstack" *badge* requirement
+(`LICENSE` § 3.7(b)) does not apply to it — shipping the `LICENSE` / `NOTICE` /
+`THIRD-PARTY-NOTICES.md` files (done in A.4) plus this README line is what it needs. The badge
+requirement *does* apply to the React SPA and the Streamlit app — see B.5 and Part D.
 
 ### A.5 — Watch it build
 
@@ -207,6 +255,15 @@ Once the deploy finishes, Cloudflare gives you a URL like `https://road-designer
 Open it — you should see the app's UI, though submitting a design will fail with a CORS error
 until Part C is done (that's expected, not a bug).
 
+### B.5 — Check the "Powered by Beamstack" credit is visible
+
+`LICENSE` § 3.7 requires any deployed UI built on Road Designer to show "Powered by Beamstack"
+(the text, or the logo in `brand/`), linked to <https://beam-stack.com>, somewhere a user would
+look for credits — the app footer, an About panel, or a splash screen. It need not be on every
+screen. Confirm it renders on your deployed Pages URL; if it's missing, add it to the SPA before
+treating the deploy as done. This applies to any fork or third-party deployment too, not just
+yours.
+
 ---
 
 ## 5. Part C — Close the loop: lock down CORS
@@ -242,6 +299,10 @@ still points at the old path and needs updating:
 
 If you haven't deployed the Streamlit app yet, just point a new Streamlit Cloud app at this
 path from the start when you create it — same field, same value.
+
+As with the React SPA (B.5), the Streamlit app must show the "Powered by Beamstack" credit
+(`LICENSE` § 3.7) — in the sidebar, the page footer, or an "À propos" expander — linked to
+<https://beam-stack.com>. Confirm it's there after the reboot.
 
 ---
 
@@ -298,6 +359,8 @@ Each surface updates independently:
   rsync -a --delete "$PROJECT/road_designer/" ./road_designer/
   rsync -a --delete "$PROJECT/samples/" ./samples/
   rsync -a --delete "$PROJECT/backend/" ./backend/
+  rsync -a --delete "$PROJECT/brand/" ./brand/
+  cp "$PROJECT/LICENSE" "$PROJECT/NOTICE" "$PROJECT/THIRD-PARTY-NOTICES.md" ./
   rm -f ./backend/Dockerfile   # the copy at repo root (below) is the one that counts
 
   cp "$PROJECT/backend/Dockerfile" ./Dockerfile   # only needed if the Dockerfile itself changed

@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Beamstack <https://beam-stack.com>
+# SPDX-License-Identifier: LicenseRef-BCL-1.0
 """Road Designer V 1.0 — Streamlit Community Cloud UI.
 
 Entry point that any user of the deployed app sees. Three principles:
